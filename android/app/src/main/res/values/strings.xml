@@ -1,3 +1,10 @@
-<string name="accessibility_description">
-This app uses accessibility to detect when locked apps are opened so it can show a lock screen. No personal data is collected.
-</string>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">pushlock</string>
+
+    <string name="accessibility_description">
+        This app uses accessibility to detect when locked apps are opened so it can show a lock screen. No personal data is collected.
+    </string>
+
+</resources>
