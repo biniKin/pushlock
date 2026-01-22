@@ -1,0 +1,3 @@
+<string name="accessibility_description">
+This app uses accessibility to detect when locked apps are opened so it can show a lock screen. No personal data is collected.
+</string>
