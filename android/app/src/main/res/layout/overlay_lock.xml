@@ -1,15 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:background="#AA000000"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#1A1A2E"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <ImageView
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@android:drawable/ic_lock_idle_lock"
+        android:tint="#FFFFFF"
+        android:layout_marginBottom="24dp"/>
 
     <TextView
-        android:text="App Locked!"
-        android:textColor="#FFFFFF"
-        android:textSize="24sp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:gravity="center"/>
-</FrameLayout>
+        android:text="App Locked!"
+        android:textColor="#FFFFFF"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="This app is locked for your security"
+        android:textColor="#B0B0B0"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginBottom="40dp"/>
+
+    <Button
+        android:id="@+id/btn_unlock"
+        android:layout_width="200dp"
+        android:layout_height="56dp"
+        android:text="Unlock"
+        android:textColor="#1A1A2E"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:background="@android:drawable/button_onoff_indicator_on"
+        android:backgroundTint="#FFFFFF"/>
+
+</LinearLayout>

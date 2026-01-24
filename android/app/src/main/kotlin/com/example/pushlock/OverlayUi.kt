@@ -1,12 +1,15 @@
 package com.example.pushlock
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.PixelFormat
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
 
 class OverlayUi(private val context: Context) {
     private var overlayView: View? = null
@@ -32,8 +35,18 @@ class OverlayUi(private val context: Context) {
         overlayView = LayoutInflater.from(context).inflate(R.layout.overlay_lock, null)
         wm.addView(overlayView, layoutParams)
 
-        overlayView?.setOnClickListener {
-            Log.d("APP_LOCK", "Overlay clicked! Can implement unlock logic here")
+        
+
+        overlayView?.findViewById<Button>(R.id.btn_unlock)?.setOnClickListener {
+            // Create intent to open the app with unlock page
+            val intent = Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                data = Uri.parse("pushlock://unlock")
+                putExtra("route", "/unlock")
+            }   
+            context.startActivity(intent)
+
+            removeOverlay() // remove overlay after opening app
         }
     }
 

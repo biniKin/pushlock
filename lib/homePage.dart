@@ -16,7 +16,7 @@ class Homepage extends StatefulWidget {
 
 class _HomepageState extends State<Homepage> {
   List<AppInfo> applists = [];
-  bool _isOverlayActive = false;
+  bool radioValue = false;
 
   Future<List<AppInfo>> getApps() async {
     List<AppInfo> intalledApps = await InstalledApps.getInstalledApps(
@@ -27,50 +27,6 @@ class _HomepageState extends State<Homepage> {
       applists = intalledApps;
     });
     return intalledApps;
-  }
-
-  void launchOverlay() async {
-    if (_isOverlayActive) {
-      print("Overlay already active, skipping");
-      return;
-    }
-
-    print("on launch overlay function");
-    final hasPermission = await FlutterOverlayWindow.isPermissionGranted();
-    if (!hasPermission) {
-      print("no permission");
-      await FlutterOverlayWindow.requestPermission();
-      return;
-    }
-
-    // _isOverlayActive = true;
-    await FlutterOverlayWindow.showOverlay(
-      height: WindowSize.matchParent,
-      width: WindowSize.matchParent,
-      enableDrag: false,
-      flag: OverlayFlag.defaultFlag,
-      visibility: NotificationVisibility.visibilityPublic,
-      overlayTitle: "PushLock",
-      overlayContent: "Lock Screen",
-    );
-  }
-
-  void closeOverlay() async {
-    await FlutterOverlayWindow.closeOverlay();
-  }
-
-  void openAccessibilitySettings() async {
-    bool isEnabled =
-        await FlutterAccessibilityService.isAccessibilityPermissionEnabled();
-
-    if (!isEnabled) {
-      final intent = AndroidIntent(
-        action: 'android.settings.ACCESSIBILITY_SETTINGS',
-      );
-      intent.launch();
-    } else {
-      print("Accessbility permission granted!");
-    }
   }
 
   @override
@@ -97,7 +53,7 @@ class _HomepageState extends State<Homepage> {
     //     closeOverlay();
     //   }
     // });
-    // getApps();
+    getApps();
   }
 
   @override
@@ -121,6 +77,16 @@ class _HomepageState extends State<Homepage> {
                     ? Image.memory(app.icon!)
                     : Icon(Icons.apps),
                 title: Text(app.name),
+                trailing: Radio(
+                  value: radioValue,
+                  
+                  onChanged: (value) {
+                    setState(() {
+                      radioValue != radioValue;
+                    });
+                  },
+                  
+                ),
               );
             },
           ),

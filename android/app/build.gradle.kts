@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    id("com.google.devtools.ksp") version "2.0.0-1.0.21"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -37,6 +38,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
 }
 
 flutter {
