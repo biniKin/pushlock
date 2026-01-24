@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:pushlock/appLockService.dart';
 
 class Unlockpage extends StatelessWidget {
   const Unlockpage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final AppLockService appLockService = AppLockService();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Unlock Page'),
@@ -17,19 +20,29 @@ class Unlockpage extends StatelessWidget {
             const Icon(Icons.lock_open, size: 100, color: Colors.green),
             const SizedBox(height: 20),
             const Text(
-              'Unlock Page',
+              'Unlock App',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             const Text(
-              'Enter your PIN or password to unlock',
+              'Click unlock to reset the timer',
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () {
-                // Add your unlock logic here
-                Navigator.pop(context);
+              onPressed: () async {
+                // For now, unlock Instagram (hardcoded)
+                // TODO: Get actual package name from context
+                final success = await appLockService.unlockApp(
+                  'com.instagram.android',
+                );
+
+                if (success && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('App unlocked! Timer reset.')),
+                  );
+                  Navigator.pop(context);
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,

@@ -49,11 +49,12 @@ package com.example.pushlock
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
+import android.net.Uri
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import android.provider.Settings
-import android.net.Uri
 import com.example.pushlock.data.local.LockedAppDatabase
 import com.example.pushlock.data.local.LockedAppEntity
 import com.example.pushlock.data.repo.LockedAppRepo
@@ -77,17 +78,53 @@ class MainActivity : FlutterActivity() {
         // Add test locked apps to database (for testing only)
         TestHelper.addTestLockedApps(this)
 
+        // Check and request permissions in order
+        checkAndRequestPermissions()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Check permissions again when returning to the app
+        checkAndRequestPermissions()
+    }
+    
+    private fun checkAndRequestPermissions() {
+        // Check permissions in priority order
         if (!UsageAccessHelper.hasUsageAccess(this)) {
             UsageAccessHelper.requestUsageAccess(this)
-        } else {
-            if (!Settings.canDrawOverlays(this)) {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
+            return
+        }
+        
+        if (!Settings.canDrawOverlays(this)) {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+            return
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                requestBatteryOptimizationExemption()
+                return
+            }
+        }
+        
+        // All permissions granted, start the service
+        startAppLockService()
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            val packageName = packageName
+            
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.data = Uri.parse("package:$packageName")
                 startActivity(intent)
-            } else {
-                startAppLockService()
             }
         }
     }
@@ -246,6 +283,34 @@ class MainActivity : FlutterActivity() {
                             }
                         }
                     } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "unlockApp" -> {
+                    try {
+                        val packageName = call.arguments as? String
+                        android.util.Log.d("APP_LOCK", "MainActivity: unlockApp called with: $packageName")
+                        println("========== MAIN_ACTIVITY: unlockApp called with: $packageName ==========")
+                        
+                        if (packageName == null) {
+                            android.util.Log.e("APP_LOCK", "MainActivity: Package name is null")
+                            result.error("INVALID_ARGS", "Package name is required", null)
+                            return@setMethodCallHandler
+                        }
+
+                        // Send explicit broadcast to AppLockService to unlock the app
+                        val intent = Intent("com.example.pushlock.UNLOCK_APP")
+                        intent.setPackage(this.packageName) // Make it explicit to our app
+                        intent.putExtra("packageName", packageName)
+                        sendBroadcast(intent)
+                        
+                        android.util.Log.d("APP_LOCK", "MainActivity: Explicit broadcast sent for $packageName")
+                        println("========== MAIN_ACTIVITY: Explicit broadcast sent for $packageName ==========")
+                        
+                        result.success(true)
+                    } catch (e: Exception) {
+                        android.util.Log.e("APP_LOCK", "MainActivity: Error unlocking app: ${e.message}")
                         result.error("ERROR", e.message, null)
                     }
                 }
