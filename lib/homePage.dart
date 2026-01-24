@@ -1,11 +1,8 @@
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_accessibility_service/flutter_accessibility_service.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:pushlock/foreground_service.dart';
+import 'package:pushlock/appLockService.dart';
+import 'package:pushlock/locked_app.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -16,7 +13,8 @@ class Homepage extends StatefulWidget {
 
 class _HomepageState extends State<Homepage> {
   List<AppInfo> applists = [];
-  bool radioValue = false;
+  Set<String> lockedPackages = {}; // Track locked app packages
+  final AppLockService _appLockService = AppLockService();
 
   Future<List<AppInfo>> getApps() async {
     List<AppInfo> intalledApps = await InstalledApps.getInstalledApps(
@@ -29,68 +27,90 @@ class _HomepageState extends State<Homepage> {
     return intalledApps;
   }
 
+  Future<void> loadLockedApps() async {
+    final lockedApps = await _appLockService.getLockedApps();
+    if (lockedApps != null) {
+      setState(() {
+        lockedPackages = lockedApps.map((app) => app.packageName).toSet();
+      });
+    }
+  }
+
+  Future<void> toggleAppLock(AppInfo app, bool isLocked) async {
+    if (isLocked) {
+      // Add app to locked list with default timeout of 5 seconds
+      final lockedApp = LockedApp(
+        packageName: app.packageName,
+        appName: app.name,
+        isStrict: false,
+        timeoutSeconds: 5,
+      );
+      final success = await _appLockService.addLockedApp(lockedApp);
+      if (success) {
+        setState(() {
+          lockedPackages.add(app.packageName);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${app.name} locked')));
+        }
+      }
+    } else {
+      // Remove app from locked list
+      final success = await _appLockService.removeLockedApp(app.packageName);
+      if (success) {
+        setState(() {
+          lockedPackages.remove(app.packageName);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${app.name} unlocked')));
+        }
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-
-    // openAccessibilitySettings();
-    // ForegroundService.foregroundApps.listen((packageName) {
-    //   print("Opened app: $packageName");
-
-    //   // Ignore our own app
-    //   if (packageName == "com.example.pushlock") {
-    //     print("Our own app, skipping overlay");
-    //     _isOverlayActive = false;
-    //     return;
-    //   }
-
-    //   // Example lock condition
-    //   if (packageName == "com.instagram.android") {
-    //     // show lock screen
-    //     print("...........Instagram is opened................");
-    //     launchOverlay();
-    //   } else {
-    //     closeOverlay();
-    //   }
-    // });
     getApps();
+    loadLockedApps();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Lock Apps'),
+        backgroundColor: Colors.deepPurple,
+      ),
       body: SafeArea(
-        child: Center(
-          child: ListView.builder(
-            itemCount: applists.length,
-            itemBuilder: (context, index) {
-              final app = applists[index];
-              // print("app name: ${app.name}");
-              // print("package name: ${app.packageName}");
-              // print("version name: ${app.versionName}");
-              // print("version code: ${app.versionCode}");
-              // print("installed time: ${app.installedTimestamp}");
+        child: applists.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : ListView.builder(
+                itemCount: applists.length,
+                itemBuilder: (context, index) {
+                  final app = applists[index];
+                  final isLocked = lockedPackages.contains(app.packageName);
 
-              return ListTile(
-                contentPadding: EdgeInsets.all(10),
-                leading: app.icon != null
-                    ? Image.memory(app.icon!)
-                    : Icon(Icons.apps),
-                title: Text(app.name),
-                trailing: Radio(
-                  value: radioValue,
-                  
-                  onChanged: (value) {
-                    setState(() {
-                      radioValue != radioValue;
-                    });
-                  },
-                  
-                ),
-              );
-            },
-          ),
-        ),
+                  return ListTile(
+                    contentPadding: const EdgeInsets.all(10),
+                    leading: app.icon != null
+                        ? Image.memory(app.icon!)
+                        : const Icon(Icons.apps),
+                    title: Text(app.name),
+                    subtitle: Text(app.packageName),
+                    trailing: Switch(
+                      value: isLocked,
+                      onChanged: (value) {
+                        toggleAppLock(app, value);
+                      },
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }

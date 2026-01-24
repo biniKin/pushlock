@@ -54,13 +54,25 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.provider.Settings
 import android.net.Uri
+import com.example.pushlock.data.local.LockedAppDatabase
+import com.example.pushlock.data.local.LockedAppEntity
+import com.example.pushlock.data.repo.LockedAppRepo
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : FlutterActivity() {
     private val DEEP_LINK_CHANNEL = "com.example.pushlock/navigation"
     private val CHANNEL = "com.example.pushlock/app_lock"
+    private lateinit var lockedAppRepo: LockedAppRepo
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Initialize Room database
+        val database = LockedAppDatabase.getDatabase(this)
+        lockedAppRepo = LockedAppRepo(database.lockedAppDao())
 
         // Add test locked apps to database (for testing only)
         TestHelper.addTestLockedApps(this)
@@ -86,38 +98,169 @@ class MainActivity : FlutterActivity() {
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, CHANNEL
         ).setMethodCallHandler { call, result ->
-            // Handle method calls from Flutter if needed
-            // result.notImplemented()
-
-
+            
             when(call.method) {
                 "addLockedApp" -> {
-                    val data = call.arguments
+                    try {
+                        val args = call.arguments as? Map<*, *>
+                        if (args == null) {
+                            result.error("INVALID_ARGS", "Arguments must be a map", null)
+                            return@setMethodCallHandler
+                        }
 
-                    val packageName = data["packageName"] as String
-                    val appName = data["appName"] as String
-                    val timeout = data["timeoutSeconds"] as Int
-                    val isStrict = data["isStrict"] as Boolean
-            
-            
-                    result.success(true)
+                        val packageName = args["packageName"] as? String
+                        val appName = args["appName"] as? String
+                        val timeout = args["timeoutSeconds"] as? Int
+                        val isStrict = args["isStrict"] as? Boolean
+
+                        if (packageName == null || appName == null || timeout == null || isStrict == null) {
+                            result.error("MISSING_ARGS", "Missing required arguments", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    lockedAppRepo.addApp(
+                                        LockedAppEntity(
+                                            packageName = packageName,
+                                            appName = appName,
+                                            timeoutSecond = timeout,
+                                            isStrict = isStrict
+                                        )
+                                    )
+                                }
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
                 }
 
                 "removeLockedApp" -> {
-                    val packageName = call.arguments as String
-                    
-                    result.success(true)
+                    try {
+                        val packageName = call.arguments as? String
+                        if (packageName == null) {
+                            result.error("INVALID_ARGS", "Package name is required", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    lockedAppRepo.removeAppByPackageName(packageName)
+                                }
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
                 }
 
-                "getLockedApp" -> {}
+                "getLockedApps" -> {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        try {
+                            val apps = withContext(Dispatchers.IO) {
+                                lockedAppRepo.fetchLockedApps()
+                            }
+                            
+                            // Convert to list of maps for Flutter
+                            val appsList = apps.map { app ->
+                                mapOf(
+                                    "packageName" to app.packageName,
+                                    "appName" to app.appName,
+                                    "timeoutSecond" to app.timeoutSecond,
+                                    "isStrict" to app.isStrict
+                                )
+                            }
+                            
+                            result.success(appsList)
+                        } catch (e: Exception) {
+                            result.error("DB_ERROR", e.message, null)
+                        }
+                    }
+                }
+
+                "updateLockedApp" -> {
+                    try {
+                        val args = call.arguments as? Map<*, *>
+                        if (args == null) {
+                            result.error("INVALID_ARGS", "Arguments must be a map", null)
+                            return@setMethodCallHandler
+                        }
+
+                        val packageName = args["packageName"] as? String
+                        val appName = args["appName"] as? String
+                        val timeout = args["timeoutSeconds"] as? Int
+                        val isStrict = args["isStrict"] as? Boolean
+
+                        if (packageName == null || appName == null || timeout == null || isStrict == null) {
+                            result.error("MISSING_ARGS", "Missing required arguments", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    lockedAppRepo.updateApp(
+                                        LockedAppEntity(
+                                            packageName = packageName,
+                                            appName = appName,
+                                            timeoutSecond = timeout,
+                                            isStrict = isStrict
+                                        )
+                                    )
+                                }
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
 
                 "isAppLocked" -> {
-                    val packageName = call.arguments as String
+                    try {
+                        val packageName = call.arguments as? String
+                        if (packageName == null) {
+                            result.error("INVALID_ARGS", "Package name is required", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                val isLocked = withContext(Dispatchers.IO) {
+                                    lockedAppRepo.isAppLocked(packageName)
+                                }
+                                result.success(isLocked)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
                 }
 
-                "navigation" -> {}
+                else -> {
+                    result.notImplemented()
+                }
             }
         }
+
+        // Deep link channel for navigation
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEEP_LINK_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                result.notImplemented()
+            }
     }
 
     override fun onNewIntent(intent: Intent) {
