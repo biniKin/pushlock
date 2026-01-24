@@ -56,10 +56,14 @@ import android.provider.Settings
 import android.net.Uri
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.example.pushlock/navigation"
+    private val DEEP_LINK_CHANNEL = "com.example.pushlock/navigation"
+    private val CHANNEL = "com.example.pushlock/app_lock"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Add test locked apps to database (for testing only)
+        TestHelper.addTestLockedApps(this)
 
         if (!UsageAccessHelper.hasUsageAccess(this)) {
             UsageAccessHelper.requestUsageAccess(this)
@@ -79,9 +83,40 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, CHANNEL
+        ).setMethodCallHandler { call, result ->
             // Handle method calls from Flutter if needed
-            result.notImplemented()
+            // result.notImplemented()
+
+
+            when(call.method) {
+                "addLockedApp" -> {
+                    val data = call.arguments
+
+                    val packageName = data["packageName"] as String
+                    val appName = data["appName"] as String
+                    val timeout = data["timeoutSeconds"] as Int
+                    val isStrict = data["isStrict"] as Boolean
+            
+            
+                    result.success(true)
+                }
+
+                "removeLockedApp" -> {
+                    val packageName = call.arguments as String
+                    
+                    result.success(true)
+                }
+
+                "getLockedApp" -> {}
+
+                "isAppLocked" -> {
+                    val packageName = call.arguments as String
+                }
+
+                "navigation" -> {}
+            }
         }
     }
 
@@ -99,7 +134,7 @@ class MainActivity : FlutterActivity() {
             if (route == "/unlock" || data?.toString()?.contains("unlock") == true) {
                 // Navigate to unlock page via Flutter
                 flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
-                    MethodChannel(messenger, CHANNEL).invokeMethod("navigateToUnlock", null)
+                    MethodChannel(messenger, DEEP_LINK_CHANNEL).invokeMethod("navigateToUnlock", null)
                 }
             }
         }

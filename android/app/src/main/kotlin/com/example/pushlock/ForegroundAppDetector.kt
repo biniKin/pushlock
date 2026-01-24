@@ -7,6 +7,7 @@ import android.os.Build // Build provides information about the Android OS versi
 
 
 class ForegroundAppDetector(private val context: Context) {
+    private var lastKnownApp: String? = null
 
     fun getForegroundApp(): String? {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager;
@@ -28,7 +29,11 @@ class ForegroundAppDetector(private val context: Context) {
             }
         }
 
-        return currentApp
+        if(currentApp != null){
+            lastKnownApp = currentApp
+        }
+
+        return currentApp ?: lastKnownApp
     }
     
 }
