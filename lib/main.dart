@@ -1,10 +1,15 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pushlock/camera_page.dart';
 import 'package:pushlock/homePage.dart';
 import 'package:pushlock/unlockPage.dart';
 
-void main() {
+late List<CameraDescription> cameras;
+
+void main()async {
   WidgetsFlutterBinding.ensureInitialized();
+  cameras = await availableCameras();
   runApp(const MyApp());
 }
 
@@ -41,8 +46,9 @@ class _MyAppState extends State<MyApp> {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const Homepage(),
+        '/': (context) => const CameraPage(),
         '/unlock': (context) => const Unlockpage(),
+
       },
     );
   }
