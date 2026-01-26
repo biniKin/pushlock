@@ -1,1 +1,1 @@
-enum PushUpState { neutral, init, complete }
+enum PushUpState { top, down, bottom, up }

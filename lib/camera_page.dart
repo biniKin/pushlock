@@ -3,6 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:pushlock/main.dart';
+import 'package:pushlock/pushup_state.dart';
+import 'package:pushlock/utils.dart';
+
+
+const int CONFIRM_FRAMES = 4;
+
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -12,27 +18,44 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
+  
   late CameraController controller;
   late PoseDetector poseDetector;
   final options = PoseDetectorOptions();
   bool _isProcessing = false;
   int pushUpCount = 0;
+  PushUpState phase = PushUpState.top;
 
   // Reference position for pushup detection
-  double? _referenceChestY;
-  double? _upPositionY;
-  double? _downPositionY;
+  int downFrames = 0;
+  int bottomFrames = 0;
+  int upFrames = 0;
+  
 
-  // Pushup state tracking
-  bool _isInDownPosition = false;
 
-  // Rotation for camera image
-  final rotation = InputImageRotation.rotation0deg;
+  InputImageRotation _getImageRotation() {
+    final camera = cameras[controller.description.lensDirection == CameraLensDirection.front ? 1 : 0];
+    
+    switch (camera.sensorOrientation) {
+        case 90:
+          return InputImageRotation.rotation90deg;
+        case 180:
+          return InputImageRotation.rotation180deg;
+        case 270:
+          return InputImageRotation.rotation270deg;
+        default:
+          return InputImageRotation.rotation0deg;
+      }
+  }
 
   @override
   void initState() {
     super.initState();
+    _initial();
 
+  }
+
+  void _initial()async{
     poseDetector = PoseDetector(options: PoseDetectorOptions());
 
     controller = CameraController(
@@ -49,7 +72,7 @@ class _CameraPageState extends State<CameraPage> {
         if (_isProcessing) return;
         _isProcessing = true;
 
-        final inputImage = _inputImageFromCameraImage(img, rotation);
+        final inputImage = inputImageFromCameraImage(img, _getImageRotation());
         final poses = await poseDetector.processImage(inputImage);
 
         if (poses.isNotEmpty) detectPushUp(poses.first);
@@ -61,112 +84,73 @@ class _CameraPageState extends State<CameraPage> {
     });
   }
 
-  InputImage _inputImageFromCameraImage(
-    CameraImage image,
-    InputImageRotation rotation,
-  ) {
-    final int width = image.width;
-    final int height = image.height;
-
-    final yPlane = image.planes[0];
-    final uPlane = image.planes[1];
-    final vPlane = image.planes[2];
-
-    final nv21 = Uint8List(width * height * 3 ~/ 2);
-
-    // Copy Y plane
-    for (int row = 0; row < height; row++) {
-      nv21.setRange(
-        row * width,
-        row * width + width,
-        yPlane.bytes,
-        row * yPlane.bytesPerRow,
-      );
-    }
-
-    // Copy interleaved VU (chroma) planes
-    final chromaHeight = height ~/ 2;
-    final chromaWidth = width ~/ 2;
-    int nv21Offset = width * height;
-
-    for (int row = 0; row < chromaHeight; row++) {
-      for (int col = 0; col < chromaWidth; col++) {
-        final uIndex = row * uPlane.bytesPerRow + col;
-        final vIndex = row * vPlane.bytesPerRow + col;
-
-        nv21[nv21Offset++] = vPlane.bytes[vIndex];
-        nv21[nv21Offset++] = uPlane.bytes[uIndex];
-      }
-    }
-
-    return InputImage.fromBytes(
-      bytes: nv21,
-      metadata: InputImageMetadata(
-        size: Size(width.toDouble(), height.toDouble()),
-        rotation: rotation,
-        format: InputImageFormat.nv21,
-        bytesPerRow: width,
-      ),
-    );
-  }
-
   void detectPushUp(Pose pose) {
-    final leftShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
-    final rightShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
-    final leftHip = pose.landmarks[PoseLandmarkType.leftHip];
-    final rightHip = pose.landmarks[PoseLandmarkType.rightHip];
+  
+  if (!isBodyHorizontal(pose)) return;
+  if (!bothArmsVisible(pose)) return;
 
-    // Check if all required landmarks are detected
-    if (leftShoulder == null ||
-        rightShoulder == null ||
-        leftHip == null ||
-        rightHip == null) {
-      return;
-    }
+  final angle = getCombinedElbowAngle(pose);
+  if (angle == null) return;
 
-    // Calculate chest Y position (average of shoulders)
-    double chestY = (leftShoulder.y + rightShoulder.y) / 2;
+  switch (phase) {
 
-    // Calculate hip Y position for better detection
-    double hipY = (leftHip.y + rightHip.y) / 2;
+    case PushUpState.top:
+      if (angle < 140) {
+        downFrames++;
+        if (downFrames >= CONFIRM_FRAMES) {
+          phase = PushUpState.down;
+          downFrames = 0;
+          debugPrint("⬇️ Confirmed going DOWN");
+        }
+      } else {
+        downFrames = 0;
+      }
+      break;
 
-    // Calculate torso length for relative thresholds
-    double torsoLength = (hipY - chestY).abs();
+    case PushUpState.down:
+      if (angle < 90) {
+        bottomFrames++;
+        if (bottomFrames >= CONFIRM_FRAMES) {
+          phase = PushUpState.bottom;
+          bottomFrames = 0;
+          debugPrint("🔽 Confirmed BOTTOM");
+        }
+      } else {
+        bottomFrames = 0;
+      }
+      break;
 
-    // Initialize reference position on first detection (user should start in UP position)
-    if (_referenceChestY == null) {
-      _referenceChestY = chestY;
-      _upPositionY = chestY;
-      debugPrint("Reference position set: chest=$chestY, torso=$torsoLength");
-      return;
-    }
+    case PushUpState.bottom:
+      if (angle > 120) {
+        upFrames++;
+        if (upFrames >= CONFIRM_FRAMES) {
+          phase = PushUpState.up;
+          upFrames = 0;
+          debugPrint("⬆️ Confirmed going UP");
+        }
+      } else {
+        upFrames = 0;
+      }
+      break;
 
-    // Use relative thresholds based on torso length (more robust)
-    // User goes DOWN when chest moves down by ~30% of torso length
-    // User goes UP when chest returns to within ~15% of reference
-    double downThreshold = _referenceChestY! + (torsoLength * 0.3);
-    double upThreshold = _referenceChestY! + (torsoLength * 0.15);
-
-    if (!_isInDownPosition && chestY > downThreshold) {
-      // User went down
-      _isInDownPosition = true;
-      _downPositionY = chestY;
-      debugPrint("State: DOWN (chest at $chestY, threshold: $downThreshold)");
-      setState(() {}); // Update UI
-    } else if (_isInDownPosition && chestY < upThreshold) {
-      // User came back up - count the pushup!
-      _isInDownPosition = false;
-      pushUpCount++;
-      debugPrint(
-        "Push-up #$pushUpCount completed! (chest at $chestY, threshold: $upThreshold)",
-      );
-
-      // Update reference to current up position for better tracking
-      _referenceChestY = chestY;
-      _upPositionY = chestY;
-      setState(() {}); // Update UI
-    }
+    case PushUpState.up:
+      if (angle > 160) {
+        upFrames++;
+        if (upFrames >= CONFIRM_FRAMES) {
+          phase = PushUpState.top;
+          upFrames = 0;
+          pushUpCount++;
+          debugPrint("✅ PUSH-UP COUNTED: $pushUpCount");
+        }
+      } else {
+        upFrames = 0;
+      }
+      break;
   }
+}
+
+  
+
 
   @override
   void dispose() {
@@ -175,6 +159,23 @@ class _CameraPageState extends State<CameraPage> {
     poseDetector.close();
     super.dispose();
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -212,33 +213,33 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           // State indicator (for debugging)
-          Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: _isInDownPosition
-                      ? Colors.orange.withValues(alpha: 0.7)
-                      : Colors.green.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  _isInDownPosition ? 'DOWN' : 'UP',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Positioned(
+          //   bottom: 50,
+          //   left: 0,
+          //   right: 0,
+          //   child: Center(
+          //     child: Container(
+          //       padding: const EdgeInsets.symmetric(
+          //         horizontal: 20,
+          //         vertical: 8,
+          //       ),
+          //       decoration: BoxDecoration(
+          //         color: _isInDownPosition
+          //             ? Colors.orange.withValues(alpha: 0.7)
+          //             : Colors.green.withValues(alpha: 0.7),
+          //         borderRadius: BorderRadius.circular(15),
+          //       ),
+          //       child: Text(
+          //         _isInDownPosition ? 'DOWN' : 'UP',
+          //         style: const TextStyle(
+          //           color: Colors.white,
+          //           fontSize: 24,
+          //           fontWeight: FontWeight.bold,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
