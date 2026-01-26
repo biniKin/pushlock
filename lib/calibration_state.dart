@@ -1,0 +1,4 @@
+enum DetectorMode {
+  calibrating,
+  active,
+}

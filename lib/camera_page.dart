@@ -2,12 +2,14 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:pushlock/calibration_state.dart';
 import 'package:pushlock/main.dart';
 import 'package:pushlock/pushup_state.dart';
 import 'package:pushlock/utils.dart';
 
 
 const int CONFIRM_FRAMES = 4;
+const int CALIBRATION_FRAMES = 20;
 
 
 class CameraPage extends StatefulWidget {
@@ -25,11 +27,28 @@ class _CameraPageState extends State<CameraPage> {
   bool _isProcessing = false;
   int pushUpCount = 0;
   PushUpState phase = PushUpState.top;
+  List<double> elbowAngles = [];
+  List<double> torsoAngles = [];
+
+  // Add these declarations after your existing variables
+  double? calibratedTopAngle;
+  double? calibratedTorsoAngle; 
+  double? topThreshold;
+  double? bottomThreshold;
+ // ~2 seconds at 10 FPS
+
+  double _average(List<double> values) {
+    if (values.isEmpty) return 0.0;
+    return values.reduce((a, b) => a + b) / values.length;
+  }
+
 
   // Reference position for pushup detection
   int downFrames = 0;
   int bottomFrames = 0;
-  int upFrames = 0;
+  int goingUpFrames = 0;
+  int topFrames = 0;
+
   
 
 
@@ -75,7 +94,15 @@ class _CameraPageState extends State<CameraPage> {
         final inputImage = inputImageFromCameraImage(img, _getImageRotation());
         final poses = await poseDetector.processImage(inputImage);
 
-        if (poses.isNotEmpty) detectPushUp(poses.first);
+        if (poses.isNotEmpty) {
+          if (mode == DetectorMode.calibrating) {
+            handleCalibration(poses.first);
+            _isProcessing = false;
+            return;
+          }
+          detectPushUp(poses.first);
+        
+        }
 
         _isProcessing = false;
       });
@@ -85,69 +112,106 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void detectPushUp(Pose pose) {
-  
-  if (!isBodyHorizontal(pose)) return;
-  if (!bothArmsVisible(pose)) return;
+    if (!bothArmsVisible(pose)) return;
 
-  final angle = getCombinedElbowAngle(pose);
-  if (angle == null) return;
+    final angle = getCombinedElbowAngle(pose);
+    if (angle == null || calibratedTopAngle == null) return;
 
-  switch (phase) {
-
-    case PushUpState.top:
-      if (angle < 140) {
-        downFrames++;
-        if (downFrames >= CONFIRM_FRAMES) {
-          phase = PushUpState.down;
+    switch (phase) {
+      case PushUpState.top:
+        if (angle < topThreshold!) {  // Use calibrated threshold
+          downFrames++;
+          if (downFrames >= CONFIRM_FRAMES) {
+            phase = PushUpState.down;
+            downFrames = 0;
+            debugPrint("⬇️ Confirmed going DOWN");
+          }
+        } else {
           downFrames = 0;
-          debugPrint("⬇️ Confirmed going DOWN");
         }
-      } else {
-        downFrames = 0;
-      }
-      break;
+        break;
 
-    case PushUpState.down:
-      if (angle < 90) {
-        bottomFrames++;
-        if (bottomFrames >= CONFIRM_FRAMES) {
-          phase = PushUpState.bottom;
+      case PushUpState.down:
+        if (angle < bottomThreshold!) {  // Use calibrated threshold
+          bottomFrames++;
+          if (bottomFrames >= CONFIRM_FRAMES) {
+            phase = PushUpState.bottom;
+            bottomFrames = 0;
+            debugPrint("🔽 Confirmed BOTTOM");
+          }
+        } else {
           bottomFrames = 0;
-          debugPrint("🔽 Confirmed BOTTOM");
         }
-      } else {
-        bottomFrames = 0;
-      }
-      break;
+        break;
 
-    case PushUpState.bottom:
-      if (angle > 120) {
-        upFrames++;
-        if (upFrames >= CONFIRM_FRAMES) {
-          phase = PushUpState.up;
-          upFrames = 0;
-          debugPrint("⬆️ Confirmed going UP");
+      case PushUpState.bottom:
+        if (angle > bottomThreshold! + 20) {  // Small buffer above bottom
+          goingUpFrames++;
+          if (goingUpFrames >= CONFIRM_FRAMES) {
+            phase = PushUpState.up;
+            goingUpFrames = 0;
+            debugPrint("⬆️ Confirmed going UP");
+          }
+        } else {
+          goingUpFrames = 0;
         }
-      } else {
-        upFrames = 0;
-      }
-      break;
+        break;
 
-    case PushUpState.up:
-      if (angle > 160) {
-        upFrames++;
-        if (upFrames >= CONFIRM_FRAMES) {
-          phase = PushUpState.top;
-          upFrames = 0;
-          pushUpCount++;
-          debugPrint("✅ PUSH-UP COUNTED: $pushUpCount");
+      case PushUpState.up:
+        if (angle > topThreshold! - 10) {  // Small buffer below top
+          topFrames++;
+          if (topFrames >= CONFIRM_FRAMES) {
+            phase = PushUpState.top;
+            topFrames = 0;
+            pushUpCount++;
+            debugPrint("✅ PUSH-UP COUNTED: $pushUpCount");
+          }
+        } else {
+          topFrames = 0;
         }
-      } else {
-        upFrames = 0;
-      }
-      break;
+        break;
+    }
   }
-}
+  
+  DetectorMode mode = DetectorMode.calibrating;
+
+
+
+  void handleCalibration(Pose pose) {
+    if (!bothArmsVisible(pose)) return;
+    if (!isBodyHorizontal(pose)) return;
+
+    final elbowAngle = getCombinedElbowAngle(pose);
+    if (elbowAngle == null) return;
+
+    final torsoAngle = calculateTorsoAngle(pose);
+
+    elbowAngles.add(elbowAngle);
+    torsoAngles.add(torsoAngle);
+
+    debugPrint(
+      "📏 Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES",
+    );
+
+    if (elbowAngles.length >= CALIBRATION_FRAMES) {
+      calibratedTopAngle = _average(elbowAngles);
+      calibratedTorsoAngle = _average(torsoAngles);
+
+      // Dynamic thresholds
+      topThreshold = calibratedTopAngle! - 15;
+      bottomThreshold = calibratedTopAngle! - 60;
+
+      mode = DetectorMode.active;
+
+      debugPrint("✅ Calibration complete");
+      debugPrint("Top angle: $calibratedTopAngle");
+      debugPrint("Bottom threshold: $bottomThreshold");
+
+      elbowAngles.clear();
+      torsoAngles.clear();
+    }
+  }
+
 
   
 
@@ -176,72 +240,64 @@ class _CameraPageState extends State<CameraPage> {
 
 
 
-
-  @override
-  Widget build(BuildContext context) {
-    if (!controller.value.isInitialized) {
-      return Container();
-    }
-    return Scaffold(
-      body: Stack(
-        children: [
-          CameraPreview(controller),
-          // Pushup counter overlay
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Stack(
+      children: [
+        CameraPreview(controller),
+        
+        // Calibration indicator
+        if (mode == DetectorMode.calibrating)
           Positioned(
-            top: 50,
+            bottom: 100,
             left: 0,
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
+                padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.blue.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Push-ups: $pushUpCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  'Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES\nHold plank position',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
             ),
           ),
-          // State indicator (for debugging)
-          // Positioned(
-          //   bottom: 50,
-          //   left: 0,
-          //   right: 0,
-          //   child: Center(
-          //     child: Container(
-          //       padding: const EdgeInsets.symmetric(
-          //         horizontal: 20,
-          //         vertical: 8,
-          //       ),
-          //       decoration: BoxDecoration(
-          //         color: _isInDownPosition
-          //             ? Colors.orange.withValues(alpha: 0.7)
-          //             : Colors.green.withValues(alpha: 0.7),
-          //         borderRadius: BorderRadius.circular(15),
-          //       ),
-          //       child: Text(
-          //         _isInDownPosition ? 'DOWN' : 'UP',
-          //         style: const TextStyle(
-          //           color: Colors.white,
-          //           fontSize: 24,
-          //           fontWeight: FontWeight.bold,
-          //         ),
-          //       ),
-          //     ),
-          //   ),
-          // ),
-        ],
-      ),
-    );
-  }
+
+        // Push-up counter
+        Positioned(
+          top: 50,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: mode == DetectorMode.active 
+                  ? Colors.black.withOpacity(0.7) 
+                  : Colors.grey.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                mode == DetectorMode.active 
+                  ? 'Push-ups: $pushUpCount' 
+                  : 'Calibrating...',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }

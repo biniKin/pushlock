@@ -124,6 +124,20 @@ bool bothArmsVisible(Pose pose) {
 }
 
 
+double calculateTorsoAngle(Pose pose) {
+  final shoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
+  final hip = pose.landmarks[PoseLandmarkType.rightHip];
+
+  if (shoulder == null || hip == null) return 90;
+
+  final dx = hip.x - shoulder.x;
+  final dy = hip.y - shoulder.y;
+
+  return (atan2(dy, dx) * 180 / pi).abs();
+}
+
+
+
 // PushUpState? isPushUp(double angleElbow, PushUpState current) {
 //   final umbralElbow = 60.0;
 //   final umbralElbowExt = 160.0;
