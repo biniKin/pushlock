@@ -8,7 +8,7 @@ import android.content.IntentFilter
 import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.example.pushlock.data.local.LockedAppDatabase
+import com.example.pushlock.data.local.PushLockDatabase
 import com.example.pushlock.data.repo.LockedAppRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -151,7 +151,7 @@ class AppLockService : Service() {
         }
         
         if (lockedAppRepo == null) {
-            val database = LockedAppDatabase.getDatabase(this)
+            val database = PushLockDatabase.getDatabase(this)
             lockedAppRepo = LockedAppRepo(database.lockedAppDao())
             // Removed hardcoded Instagram lock - use UI to add locked apps
             // LockRepository.lockApp(this, "com.instagram.android")

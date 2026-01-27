@@ -55,7 +55,7 @@ import android.net.Uri
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import com.example.pushlock.data.local.LockedAppDatabase
+import com.example.pushlock.data.local.PushLockDatabase
 import com.example.pushlock.data.local.LockedAppEntity
 import com.example.pushlock.data.repo.LockedAppRepo
 import kotlinx.coroutines.CoroutineScope
@@ -72,7 +72,7 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
 
         // Initialize Room database
-        val database = LockedAppDatabase.getDatabase(this)
+        val database = PushLockDatabase.getDatabase(this)
         lockedAppRepo = LockedAppRepo(database.lockedAppDao())
 
         // Add test locked apps to database (for testing only)

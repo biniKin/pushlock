@@ -1,7 +1,7 @@
 package com.example.pushlock
 
 import android.content.Context
-import com.example.pushlock.data.local.LockedAppDatabase
+import com.example.pushlock.data.local.PushLockDatabase
 import com.example.pushlock.data.local.LockedAppEntity
 import com.example.pushlock.data.repo.LockedAppRepo
 import kotlinx.coroutines.CoroutineScope
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 object TestHelper {
     
     fun addTestLockedApps(context: Context) {
-        val database = LockedAppDatabase.getDatabase(context)
+        val database = PushLockDatabase.getDatabase(context)
         val repo = LockedAppRepo(database.lockedAppDao())
         
         CoroutineScope(Dispatchers.IO).launch {

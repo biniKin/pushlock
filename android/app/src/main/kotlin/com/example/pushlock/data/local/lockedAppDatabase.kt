@@ -6,20 +6,21 @@ import androidx.room.RoomDatabase
 import android.content.Context
 
 
-@Database(entities = [LockedAppEntity::class], version = 1, exportSchema = false)
-abstract class LockedAppDatabase : RoomDatabase() {
+@Database(entities = [LockedAppEntity::class, AppStatEntity::class], version = 2, exportSchema = false)
+abstract class PushLockDatabase : RoomDatabase() {
     abstract fun lockedAppDao(): LockedAppDao
+    abstract fun appStatDao() : AppStatDao
 
     companion object {
         @Volatile
-        private var INSTANCE: LockedAppDatabase? = null
+        private var INSTANCE: PushLockDatabase? = null
 
-        fun getDatabase(context: Context): LockedAppDatabase {
+        fun getDatabase(context: Context): PushLockDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    LockedAppDatabase::class.java,
-                    "locked_app_database"
+                    PushLockDatabase::class.java,
+                    "pushlock_database"
                 ).build()
                 INSTANCE = instance
                 instance
