@@ -57,6 +57,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.example.pushlock.data.local.PushLockDatabase
 import com.example.pushlock.data.local.LockedAppEntity
+import com.example.pushlock.data.repo.AppStatRepo
 import com.example.pushlock.data.repo.LockedAppRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +68,7 @@ class MainActivity : FlutterActivity() {
     private val DEEP_LINK_CHANNEL = "com.example.pushlock/navigation"
     private val CHANNEL = "com.example.pushlock/app_lock"
     private lateinit var lockedAppRepo: LockedAppRepo
+    private lateinit var appStatRepo: AppStatRepo
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,6 +76,7 @@ class MainActivity : FlutterActivity() {
         // Initialize Room database
         val database = PushLockDatabase.getDatabase(this)
         lockedAppRepo = LockedAppRepo(database.lockedAppDao())
+        appStatRepo = AppStatRepo(database.appStatDao())
 
         // Add test locked apps to database (for testing only)
         TestHelper.addTestLockedApps(this)
@@ -311,6 +314,171 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     } catch (e: Exception) {
                         android.util.Log.e("APP_LOCK", "MainActivity: Error unlocking app: ${e.message}")
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "app_stat_for_day" -> {
+                    try {
+                        val args = call.arguments as? Map<*, *>
+                        if (args == null) {
+                            result.error("INVALID_ARGS", "Arguments must be a map", null)
+                            return@setMethodCallHandler
+                        }
+
+                        val packageName = args["packageName"] as? String
+                        val date = args["date"] as? String
+
+                        if (packageName == null || date == null) {
+                            result.error("MISSING_ARGS", "Missing packageName or date", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                val appStat = withContext(Dispatchers.IO) {
+                                    appStatRepo.appStatForDay(packageName, date)
+                                }
+
+                                if (appStat != null) {
+                                    result.success(
+                                        mapOf(
+                                            "packageName" to appStat.packageName,
+                                            "appName" to appStat.appName,
+                                            "dailyUsageTime" to appStat.dailyUsageTime.toString(),
+                                            "date" to appStat.date
+                                        )
+                                    )
+                                } else {
+                                    result.success(null)
+                                }
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "apps_stat_for_day" -> {
+                    try {
+                        val date = call.arguments as? String
+                        if (date == null) {
+                            result.error("INVALID_ARGS", "Date is required", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                val appStats = withContext(Dispatchers.IO) {
+                                    appStatRepo.appsStatForDay(date)
+                                }
+
+                                val statsList = appStats.map { stat ->
+                                    mapOf(
+                                        "packageName" to stat.packageName,
+                                        "appName" to stat.appName,
+                                        "dailyUsageTime" to stat.dailyUsageTime.toString(),
+                                        "date" to stat.date
+                                    )
+                                }
+
+                                result.success(statsList)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "total_usage_for_day" -> {
+                    try {
+                        val date = call.arguments as? String
+                        if (date == null) {
+                            result.error("INVALID_ARGS", "Date is required", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                val totalUsage = withContext(Dispatchers.IO) {
+                                    appStatRepo.getTotalUsageForDay(date)
+                                }
+
+                                result.success(totalUsage ?: 0L)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "app_stat_between_dates" -> {
+                    try {
+                        val args = call.arguments as? Map<*, *>
+                        if (args == null) {
+                            result.error("INVALID_ARGS", "Arguments must be a map", null)
+                            return@setMethodCallHandler
+                        }
+
+                        val startDate = args["startDate"] as? String
+                        val endDate = args["endDate"] as? String
+                        val packageName = args["packageName"] as? String
+
+                        if (startDate == null || endDate == null || packageName == null) {
+                            result.error("MISSING_ARGS", "Missing startDate, endDate, or packageName", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                val appStats = withContext(Dispatchers.IO) {
+                                    appStatRepo.getAppStatBetweenDates(startDate, endDate, packageName)
+                                }
+
+                                val statsList = appStats.map { stat ->
+                                    mapOf(
+                                        "packageName" to stat.packageName,
+                                        "appName" to stat.appName,
+                                        "dailyUsageTime" to stat.dailyUsageTime.toString(),
+                                        "date" to stat.date
+                                    )
+                                }
+
+                                result.success(statsList)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "delete_old_stat" -> {
+                    try {
+                        val beforeDate = call.arguments as? String
+                        if (beforeDate == null) {
+                            result.error("INVALID_ARGS", "Date is required", null)
+                            return@setMethodCallHandler
+                        }
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    appStatRepo.deleteOldStat(beforeDate)
+                                }
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("DB_ERROR", e.message, null)
+                            }
+                        }
+                    } catch (e: Exception) {
                         result.error("ERROR", e.message, null)
                     }
                 }

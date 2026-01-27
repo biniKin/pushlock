@@ -5,14 +5,19 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.example.pushlock.data.local.AppStatEntity
 import com.example.pushlock.data.local.PushLockDatabase
+import com.example.pushlock.data.repo.AppStatRepo
 import com.example.pushlock.data.repo.LockedAppRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 
 class AppLockService : Service() {
@@ -23,6 +28,7 @@ class AppLockService : Service() {
 
     // Timeout tracking variables
     private var lockedAppRepo: LockedAppRepo? = null
+    private var appStatRepo: AppStatRepo? = null
     private var timerStorage: TimerStorage? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main)
     
@@ -153,6 +159,7 @@ class AppLockService : Service() {
         if (lockedAppRepo == null) {
             val database = PushLockDatabase.getDatabase(this)
             lockedAppRepo = LockedAppRepo(database.lockedAppDao())
+            appStatRepo = AppStatRepo(database.appStatDao())
             // Removed hardcoded Instagram lock - use UI to add locked apps
             // LockRepository.lockApp(this, "com.instagram.android")
             Log.d("APP_LOCK", "LockedAppRepo initialized")
@@ -288,6 +295,7 @@ class AppLockService : Service() {
     
     private fun saveAccumulatedTime(packageName: String) {
         val storage = timerStorage ?: return
+        val repo = appStatRepo ?: return
         val lastOpenTime = appLastOpenTime[packageName] ?: return
         
         // Don't accumulate if already locked
@@ -302,6 +310,39 @@ class AppLockService : Service() {
         val newAccumulated = previousAccumulated + elapsedSeconds
         
         storage.saveAccumulatedSeconds(packageName, newAccumulated)
+
+        // Save to app_stat database
+        val date = getTodayDate()
+        
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val existing = repo.appStatForDay(packageName, date)
+                
+                if (existing == null) {
+                    // Create new entry
+                    repo.upsert(
+                        AppStatEntity(
+                            packageName = packageName,
+                            appName = getAppName(packageName),
+                            date = date,
+                            dailyUsageTime = elapsedSeconds.toLong()
+                        )
+                    )
+                } else {
+                    // Update existing entry
+                    repo.upsert(
+                        existing.copy(
+                            dailyUsageTime = existing.dailyUsageTime + elapsedSeconds
+                        )
+                    )
+                }
+                
+                Log.d("APP_LOCK", "Saved app stat for $packageName: ${elapsedSeconds}s on $date")
+            } catch (e: Exception) {
+                Log.e("APP_LOCK", "Error saving app stat: ${e.message}")
+            }
+        }
+        
         appLastOpenTime.remove(packageName)
         
         Log.d("APP_LOCK", "Saved accumulated time for $packageName: ${newAccumulated}s (added ${elapsedSeconds}s)")
@@ -310,6 +351,21 @@ class AppLockService : Service() {
         println("APP_LOCK: Previous: ${previousAccumulated}s")
         println("APP_LOCK: Elapsed: ${elapsedSeconds}s")
         println("APP_LOCK: New Total: ${newAccumulated}s")
+    }
+    
+    private fun getTodayDate(): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        return dateFormat.format(Date())
+    }
+    
+    private fun getAppName(packageName: String): String {
+        return try {
+            val packageManager = applicationContext.packageManager
+            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+            packageManager.getApplicationLabel(appInfo).toString()
+        } catch (e: Exception) {
+            packageName // Fallback to package name if app name can't be retrieved
+        }
     }
 
     private fun startForegroundService() {
