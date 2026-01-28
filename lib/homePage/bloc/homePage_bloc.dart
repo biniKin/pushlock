@@ -31,7 +31,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
 
     try {
       // 1️⃣ Get raw data
-      final installedApps = await installedAppsRepo.getInstalledApps();
+      final installedApps = await installedAppsRepo.scanInstalledApps();
       final lockedApps = await lockedAppsRepo.getLockedApps();
       final appStats = await appStatsRepo.getTodayStats();
 

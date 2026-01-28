@@ -18,4 +18,25 @@ class Appuimodel {
     this.icon,
     required this.versionName
   });
+
+
+  Map<String, dynamic> toJson() => {
+    'packageName' : packageName,
+    'appName':appName,
+    'dailyUsageSeconds':dailyUsageSeconds,
+    'isLocked':isLocked,
+    'timeoutSeconds':timeoutSeconds,
+    'icon':icon,
+    'versionName':versionName
+  };
+
+  factory Appuimodel.fromJson(Map<String, dynamic> json){
+    return Appuimodel(
+      packageName: json["packageName"], 
+      appName: json["appName"], 
+      dailyUsageSeconds: json["dailyUsageSeconds"], 
+      isLocked: json["isLocked"], 
+      versionName: json["versionName"],
+    );
+  }
 }

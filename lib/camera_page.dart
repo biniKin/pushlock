@@ -1,12 +1,10 @@
 import 'package:camera/camera.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:pushlock/calibration_state.dart';
 import 'package:pushlock/main.dart';
 import 'package:pushlock/pushUpDetection.dart';
 import 'package:pushlock/pushup_state.dart';
-import 'package:pushlock/utils.dart';
 
 
 
