@@ -1,5 +1,5 @@
-import 'package:pushlock/appStatService.dart';
-import 'package:pushlock/appStatModel.dart';
+import 'package:pushlock/service/appStatService.dart';
+import 'package:pushlock/model/appStatModel.dart';
 
 class AppStatsRepository {
   final AppStatService _appStatService = AppStatService();

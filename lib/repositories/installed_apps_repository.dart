@@ -1,9 +1,9 @@
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
-import 'package:pushlock/appStatModel.dart';
-import 'package:pushlock/appUiModel.dart';
-import 'package:pushlock/installed_apps_cache.dart';
-import 'package:pushlock/locked_app.dart';
+import 'package:pushlock/model/appStatModel.dart';
+import 'package:pushlock/model/appUiModel.dart';
+import 'package:pushlock/data/installed_apps_cache.dart';
+import 'package:pushlock/model/locked_app.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/locked_apps_repository.dart';
 
@@ -12,11 +12,7 @@ class InstalledAppsRepository {
   final LockedAppsRepository lockedAppsRepo;
   final AppStatsRepository appStatsRepo;
 
-  InstalledAppsRepository(
-    this.cache,
-    this.appStatsRepo,
-    this.lockedAppsRepo,
-  );
+  InstalledAppsRepository(this.cache, this.appStatsRepo, this.lockedAppsRepo);
 
   /// RAW scan (plugin only)
   Future<List<AppInfo>> scanInstalledApps() async {
@@ -37,28 +33,25 @@ class InstalledAppsRepository {
     required List<LockedApp> lockedApps,
     required List<Appstatmodel> stats,
   }) {
-    final lockedAppsMap = {
-      for (final app in lockedApps) app.packageName: app
-    };
+    final lockedAppsMap = {for (final app in lockedApps) app.packageName: app};
 
-    final statsMap = {
-      for (final stat in stats) stat.packageName: stat
-    };
+    final statsMap = {for (final stat in stats) stat.packageName: stat};
 
     return apps.map((installedApp) {
-      final packageName = installedApp.packageName ?? '';
-
+      final packageName = installedApp.packageName!;
       final lockedApp = lockedAppsMap[packageName];
       final stat = statsMap[packageName];
 
       return Appuimodel(
         packageName: packageName,
-        appName: installedApp.name ?? 'Unknown',
+        appName: installedApp.name!,
         icon: installedApp.icon,
-        dailyUsageSeconds: stat.dailyUsageTime,
+        dailyUsageSeconds: stat != null
+            ? int.tryParse(stat.dailyUsageTime) ?? 0
+            : 0,
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
-        versionName: installedApp.versionName ?? '',
+        versionName: installedApp.versionName!,
       );
     }).toList();
   }

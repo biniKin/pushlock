@@ -1,10 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:installed_apps/app_info.dart';
-import 'package:pushlock/appStatModel.dart';
-import 'package:pushlock/appUiModel.dart';
+import 'package:pushlock/model/appStatModel.dart';
+import 'package:pushlock/model/appUiModel.dart';
 import 'package:pushlock/homePage/bloc/homePage_event.dart';
 import 'package:pushlock/homePage/bloc/homePage_state.dart';
-import 'package:pushlock/locked_app.dart';
+import 'package:pushlock/model/locked_app.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
 import 'package:pushlock/repositories/locked_apps_repository.dart';
@@ -30,22 +30,29 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
     emit(HomepageLoading());
 
     try {
-      // 1️⃣ Get raw data
-      final installedApps = await installedAppsRepo.scanInstalledApps();
-      final lockedApps = await lockedAppsRepo.getLockedApps();
-      final appStats = await appStatsRepo.getTodayStats();
+      List<Appuimodel> uiApps;
 
-      // 2️⃣ Merge into UI models
-      final List<Appuimodel> uiApps = buildUiApps(
-        installedApps: installedApps,
-        lockedApps: lockedApps,
-        stats: appStats,
-      );
+      // Check if this is a refresh event
+      if (event is RefreshHomepageData) {
+        // Force scan and cache
+        uiApps = await installedAppsRepo.scanAndCacheApps();
+      } else {
+        // Try to load from cache first
+        final cachedApps = await installedAppsRepo.getCachedApps();
 
-      // 3️⃣ Sort by usage time
+        if (cachedApps.isEmpty) {
+          // No cache, scan and cache
+          uiApps = await installedAppsRepo.scanAndCacheApps();
+        } else {
+          // Use cached data
+          uiApps = cachedApps;
+        }
+      }
+
+      // Sort by usage time
       uiApps.sort((a, b) => b.dailyUsageSeconds.compareTo(a.dailyUsageSeconds));
 
-      // 4️⃣ Prepare dashboard data
+      // Prepare dashboard data
       final chartApps = uiApps.take(4).toList();
       final lockedCount = uiApps.where((app) => app.isLocked).length;
       final totalCount = uiApps.length;

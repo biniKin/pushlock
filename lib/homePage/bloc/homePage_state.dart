@@ -1,4 +1,4 @@
-import 'package:pushlock/appUiModel.dart';
+import 'package:pushlock/model/appUiModel.dart';
 
 abstract class HomepageState {}
 

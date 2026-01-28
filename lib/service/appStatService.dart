@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:pushlock/appStatModel.dart';
+import 'package:pushlock/model/appStatModel.dart';
 
 class AppStatService {
   static const platform = MethodChannel("com.example.pushlock/app_lock");

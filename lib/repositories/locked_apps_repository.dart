@@ -1,5 +1,5 @@
-import 'package:pushlock/appLockService.dart';
-import 'package:pushlock/locked_app.dart';
+import 'package:pushlock/service/appLockService.dart';
+import 'package:pushlock/model/locked_app.dart';
 
 class LockedAppsRepository {
   final AppLockService _appLockService = AppLockService();

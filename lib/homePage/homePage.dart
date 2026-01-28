@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
-import 'package:pushlock/appLockService.dart';
-import 'package:pushlock/locked_app.dart';
+import 'package:pushlock/service/appLockService.dart';
+import 'package:pushlock/model/locked_app.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});

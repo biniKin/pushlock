@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:pushlock/locked_app.dart';
+import 'package:pushlock/model/locked_app.dart';
 
 class AppLockService {
   static const platform = MethodChannel("com.example.pushlock/app_lock");

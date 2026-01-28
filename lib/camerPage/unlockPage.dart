@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pushlock/appLockService.dart';
+import 'package:pushlock/service/appLockService.dart';
 
 class Unlockpage extends StatelessWidget {
   const Unlockpage({super.key});
