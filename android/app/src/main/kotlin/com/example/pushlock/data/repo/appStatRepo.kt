@@ -1,5 +1,8 @@
 package com.example.pushlock.data.repo
 
+import com.example.pushlock.data.local.AppStatDao
+import com.example.pushlock.data.local.AppStatEntity
+
 
 class AppStatRepo(private val appStatDao: AppStatDao){
     suspend fun upsert(app: AppStatEntity) = appStatDao.upsert(app)

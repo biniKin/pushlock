@@ -11,7 +11,7 @@ interface AppStatDao {
     // query for usage stat of one app
     @Query("""
         SELECT * FROM app_stat
-        WHERE packageName = :package AND date = :date
+        WHERE packageName = :packageName AND date = :date
         LIMIT 1
     """)
     suspend fun getAppStatForDay(
@@ -46,7 +46,7 @@ interface AppStatDao {
     // Get usage for an app across multiple days
     @Query("""
         SELECT * FROM app_stat
-        WHERE data BETWEEN :startDate AND :endDate
+        WHERE date BETWEEN :startDate AND :endDate
         AND packageName = :packageName
         ORDER BY date ASC
     """)
