@@ -2,7 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pushlock/camera_page.dart';
-import 'package:pushlock/homePage.dart';
+import 'package:pushlock/homePage/homePage.dart';
 import 'package:pushlock/unlockPage.dart';
 
 late List<CameraDescription> cameras;

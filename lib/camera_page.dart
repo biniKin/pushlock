@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:pushlock/calibration_state.dart';
 import 'package:pushlock/main.dart';
+import 'package:pushlock/pushUpDetection.dart';
 import 'package:pushlock/pushup_state.dart';
 import 'package:pushlock/utils.dart';
 
 
-const int CONFIRM_FRAMES = 4;
-const int CALIBRATION_FRAMES = 20;
+
 
 
 class CameraPage extends StatefulWidget {
@@ -20,6 +20,8 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
+  static const int CONFIRM_FRAMES = 4;
+  static const int CALIBRATION_FRAMES = 20;
   
   late CameraController controller;
   late PoseDetector poseDetector;
@@ -35,13 +37,6 @@ class _CameraPageState extends State<CameraPage> {
   double? calibratedTorsoAngle; 
   double? topThreshold;
   double? bottomThreshold;
- // ~2 seconds at 10 FPS
-
-  double _average(List<double> values) {
-    if (values.isEmpty) return 0.0;
-    return values.reduce((a, b) => a + b) / values.length;
-  }
-
 
   // Reference position for pushup detection
   int downFrames = 0;
@@ -49,23 +44,14 @@ class _CameraPageState extends State<CameraPage> {
   int goingUpFrames = 0;
   int topFrames = 0;
 
+  Pushupdetection pushupdetection = Pushupdetection();
+
   
-
-
-  InputImageRotation _getImageRotation() {
-    final camera = cameras[controller.description.lensDirection == CameraLensDirection.front ? 1 : 0];
-    
-    switch (camera.sensorOrientation) {
-        case 90:
-          return InputImageRotation.rotation90deg;
-        case 180:
-          return InputImageRotation.rotation180deg;
-        case 270:
-          return InputImageRotation.rotation270deg;
-        default:
-          return InputImageRotation.rotation0deg;
-      }
+  double _average(List<double> values) {
+    if (values.isEmpty) return 0.0;
+    return values.reduce((a, b) => a + b) / values.length;
   }
+
 
   @override
   void initState() {
@@ -91,7 +77,7 @@ class _CameraPageState extends State<CameraPage> {
         if (_isProcessing) return;
         _isProcessing = true;
 
-        final inputImage = inputImageFromCameraImage(img, _getImageRotation());
+        final inputImage = pushupdetection.inputImageFromCameraImage(img, pushupdetection.getImageRotation(controller));
         final poses = await poseDetector.processImage(inputImage);
 
         if (poses.isNotEmpty) {
@@ -112,9 +98,9 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void detectPushUp(Pose pose) {
-    if (!bothArmsVisible(pose)) return;
+    if (!pushupdetection.bothArmsVisible(pose)) return;
 
-    final angle = getCombinedElbowAngle(pose);
+    final angle = pushupdetection.getCombinedElbowAngle(pose);
     if (angle == null || calibratedTopAngle == null) return;
 
     switch (phase) {
@@ -178,13 +164,13 @@ class _CameraPageState extends State<CameraPage> {
 
 
   void handleCalibration(Pose pose) {
-    if (!bothArmsVisible(pose)) return;
-    if (!isBodyHorizontal(pose)) return;
+    if (!pushupdetection.bothArmsVisible(pose)) return;
+    if (!pushupdetection.isBodyHorizontal(pose)) return;
 
-    final elbowAngle = getCombinedElbowAngle(pose);
+    final elbowAngle = pushupdetection.getCombinedElbowAngle(pose);
     if (elbowAngle == null) return;
 
-    final torsoAngle = calculateTorsoAngle(pose);
+    final torsoAngle = pushupdetection.calculateTorsoAngle(pose);
 
     elbowAngles.add(elbowAngle);
     torsoAngles.add(torsoAngle);
@@ -213,8 +199,6 @@ class _CameraPageState extends State<CameraPage> {
   }
 
 
-  
-
 
   @override
   void dispose() {
@@ -225,79 +209,64 @@ class _CameraPageState extends State<CameraPage> {
   }
 
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          CameraPreview(controller),
+          
+          // Calibration indicator
+          if (mode == DetectorMode.calibrating)
+            Positioned(
+              bottom: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES\nHold plank position',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    body: Stack(
-      children: [
-        CameraPreview(controller),
-        
-        // Calibration indicator
-        if (mode == DetectorMode.calibrating)
+          // Push-up counter
           Positioned(
-            bottom: 100,
+            top: 50,
             left: 0,
             right: 0,
             child: Center(
               child: Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(10),
+                  color: mode == DetectorMode.active 
+                    ? Colors.black.withOpacity(0.7) 
+                    : Colors.grey.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES\nHold plank position',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  mode == DetectorMode.active 
+                    ? 'Push-ups: $pushUpCount' 
+                    : 'Calibrating...',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
           ),
-
-        // Push-up counter
-        Positioned(
-          top: 50,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: mode == DetectorMode.active 
-                  ? Colors.black.withOpacity(0.7) 
-                  : Colors.grey.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                mode == DetectorMode.active 
-                  ? 'Push-ups: $pushUpCount' 
-                  : 'Calibrating...',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 }
