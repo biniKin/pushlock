@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pushlock/appsPage/bloc/apps_bloc.dart';
 import 'package:pushlock/appsPage/bloc/apps_event.dart';
 import 'package:pushlock/appsPage/bloc/apps_state.dart';
+import 'package:pushlock/data/pushup_session_cache.dart';
+import 'package:pushlock/homePage/widgets/app_dialog.dart';
 import 'package:pushlock/homePage/widgets/appsLitsTile.dart';
+import 'package:pushlock/homePage/widgets/unlock_app_dialog.dart';
 
 class Appspage extends StatefulWidget {
   const Appspage({super.key});
@@ -63,7 +66,27 @@ class _AppspageState extends State<Appspage> {
                   return Appslitstile(
                     name: app.appName, 
                     isLocked: app.isLocked, 
-                    onTap: (){}, 
+                    onTap: ()async{
+                      final pushUpCount = await PushupSessionCache().getPushupCount(app.packageName);
+                      print("pushup count for ${app.appName}: $pushUpCount");
+                      app.isLocked ? 
+                      await unlockAppDialog(
+                        context: context, 
+                        appName: app.appName, 
+                        packageName: app.packageName, 
+                        appIcon: app.icon!, 
+                        timeoutMinutes: app.timeoutSeconds!, 
+                        pushups: pushUpCount
+                        ) :
+
+                        await appDialog(
+                          context: context,
+                          appIcon: app.icon ,
+                          isLocked: false, 
+                          appName: app.appName, 
+                          packageName: app.packageName, 
+                        );
+                    }, 
                     usageTime: app.dailyUsageSeconds,
                     appImage: app.icon != null ? Image.memory(app.icon!) : Icon(Icons.apps),
                   );

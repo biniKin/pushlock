@@ -18,7 +18,7 @@ Future<void> unlockAppDialog({
     context: context,
     builder: (context) {
       return AlertDialog(
-        backgroundColor: Colors.black,
+        backgroundColor: Color.fromARGB(255, 56, 56, 56),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),

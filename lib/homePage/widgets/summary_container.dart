@@ -22,9 +22,16 @@ class SummaryContainer extends StatelessWidget {
           // Locked apps
           Column(
             children: [
-              Text(
-                "Locked Apps",
-                style: TextStyle(color: Colors.white70),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(Icons.lock_clock, color: const Color.fromARGB(255, 186, 172, 123), size: 19,),
+                  SizedBox(width: 5,),
+                  Text(
+                    "Locked Apps",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
               ),
               SizedBox(height: 6),
               Text(
@@ -41,15 +48,21 @@ class SummaryContainer extends StatelessWidget {
             height: 50,
             width: 1,
             decoration: BoxDecoration(
-              color: Colors.grey
+              color: Colors.grey[700]
             ),
           ),
           // Total apps
           Column(
             children: [
-              Text(
-                "Total Apps",
-                style: TextStyle(color: Colors.white70),
+              Row(
+                children: [
+                  Icon(Icons.apps, color: Colors.lightGreen, size: 19,),
+                  SizedBox(width: 5,),
+                  Text(
+                    "Total Apps",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
               ),
               SizedBox(height: 6),
               Text(

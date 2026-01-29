@@ -25,10 +25,14 @@ class Appslitstile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: Colors.grey[700],
-              child: appImage,
+            Container(
+              height: 39,
+              width: 39,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                //color: Colors.white
+              ),
+              child: appImage
             ),
             const SizedBox(width: 19),
             Expanded(
@@ -54,7 +58,7 @@ class Appslitstile extends StatelessWidget {
                 ],
               ),
             ),
-            isLocked ? SvgPicture.asset("assets/icons/locked-icon.svg") : SvgPicture.asset("assets/icons/unlocked-icon.svg")
+            isLocked ? SvgPicture.asset("assets/icons/locked-icon.svg", height: 20,) : SvgPicture.asset("assets/icons/unlocked-icon.svg", height: 25,)
             
           ],
         ),

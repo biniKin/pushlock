@@ -7,13 +7,13 @@ Future<int?> showCustomDurationPicker(BuildContext context) async {
 
   return showModalBottomSheet<int>(
     context: context,
-    backgroundColor: Colors.transparent,
+    backgroundColor: Color.fromARGB(255, 56, 56, 56),
     isScrollControlled: true,
     builder: (_) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black,
+          color:Color.fromARGB(255, 56, 56, 56),
           borderRadius: const BorderRadius.vertical(
             top: Radius.circular(20),
           ),
@@ -75,7 +75,7 @@ Future<int?> showCustomDurationPicker(BuildContext context) async {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orangeAccent,
+                  backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),

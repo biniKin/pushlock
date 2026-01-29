@@ -29,7 +29,7 @@ Future<void> appDialog({
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            backgroundColor: Colors.black,
+            backgroundColor: Color.fromARGB(255, 56, 56, 56),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -196,7 +196,7 @@ Future<void> appDialog({
                   min: 5,
                   max: 100,
                   divisions: 19,
-                  activeColor: Colors.orange,
+                  activeColor: Colors.white,
                   inactiveColor: Colors.grey[700],
                   label: pushups.toInt().toString(),
                   onChanged: (value) {
@@ -262,9 +262,12 @@ Future<void> appDialog({
 
                   Navigator.pop(context);
                 },
+                style: ButtonStyle(
+                  backgroundColor: WidgetStatePropertyAll(Colors.white)
+                ),
                 child: const Text(
                   "Lock",
-                  style: TextStyle(color: Colors.orange),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ],
@@ -288,10 +291,10 @@ Widget _timeOption({
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
-        color: selected ? Colors.orangeAccent : Colors.grey[800],
+        color: selected ? Colors.white : Colors.grey[800],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selected ? Colors.orange : Colors.grey[700]!,
+          color: selected ? Colors.blueGrey : Colors.grey[700]!,
         ),
       ),
       child: Text(

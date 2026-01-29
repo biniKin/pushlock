@@ -212,7 +212,7 @@ class _CameraPageState extends State<CameraPage> {
     return Scaffold(
       body: Stack(
         children: [
-          CameraPreview(controller),
+          CameraPreview(controller, ),
           
           // Calibration indicator
           if (mode == DetectorMode.calibrating)

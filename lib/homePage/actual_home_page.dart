@@ -56,6 +56,14 @@ class _ActualHomePageState extends State<ActualHomePage> {
                   decoration: TextDecoration.none,
                 ),
               ),
+              // RichText(text: TextSpan(
+              //   children: [
+              //     TextSpan(text: "Push", style: TextStyle(fontSize: 26, color: Colors.white, fontWeight: FontWeight.bold,
+              //     decoration: TextDecoration.none,)),
+              //     TextSpan(text: "Lock", style: TextStyle(color: Colors.blueGrey, fontSize: 26, fontWeight: FontWeight.bold,
+              //     decoration: TextDecoration.none,))
+              //   ]
+              // )),
               const SizedBox(height: 4),
               // Subtitle
               const Text(

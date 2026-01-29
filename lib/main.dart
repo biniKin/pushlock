@@ -77,7 +77,7 @@ class _MyAppState extends State<MyApp> {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const Homepage(),
+        '/': (context) => const CameraPage(),
         '/unlock': (context) => const Unlockpage(),
 
       },
