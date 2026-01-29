@@ -29,6 +29,7 @@ void main()async {
   
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+  //installedAppsRepo.cache.clearCachedApps();
 
   cameras = await availableCameras();
   runApp(

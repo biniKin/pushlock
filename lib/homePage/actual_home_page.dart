@@ -67,7 +67,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
               ),
               const SizedBox(height: 20),
               // Stats + chart container
-              ChartContainer(),
+              ChartContainer(topApps: state.chartApps,),
               const SizedBox(height: 20),
               // Summary container
               SummaryContainer(lockedAppsNumber: state.lockedAppsCount, totalApps: state.totalAppsCount),
@@ -126,7 +126,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
                           packageName: app.packageName, 
                         );
                     }, 
-                    usageTime: "2 hours",
+                    usageTime: app.dailyUsageSeconds,
                     appImage: app.icon  != null ? Image.memory(app.icon!) : Icon(Icons.apps),
                   );
                 },

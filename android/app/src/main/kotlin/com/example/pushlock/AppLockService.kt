@@ -194,8 +194,12 @@ class AppLockService : Service() {
                         saveAccumulatedTime(oldApp)
                     }
                     
-                    // Check if new app is locked
+                    // Start tracking time for the new app (ALL apps, not just locked ones)
                     if (foregroundApp != null) {
+                        // Start tracking time for ALL apps
+                        appLastOpenTime[foregroundApp] = System.currentTimeMillis()
+                        println("APP_LOCK: Started tracking time for $foregroundApp")
+                        
                         serviceScope.launch {
                             val currentRepo = lockedAppRepo
                             if (currentRepo == null) {
@@ -233,14 +237,13 @@ class AppLockService : Service() {
                                         Log.d("APP_LOCK", "Time's up for $foregroundApp, showing overlay")
                                         println("========== APP_LOCK: TIME'S UP! Showing overlay ==========")
                                     } else {
-                                        // Start tracking time
-                                        appLastOpenTime[foregroundApp] = System.currentTimeMillis()
+                                        // Update timestamp for locked app tracking
                                         storage.saveLastTimestamp(foregroundApp, System.currentTimeMillis())
-                                        println("APP_LOCK: Started tracking time for $foregroundApp")
+                                        println("APP_LOCK: Tracking locked app time for $foregroundApp")
                                     }
                                 }
                             } else {
-                                println("APP_LOCK: App $foregroundApp is NOT locked")
+                                println("APP_LOCK: App $foregroundApp is NOT locked - tracking usage only")
                                 // Not locked, remove overlay if showing
                                 overlayUi?.removeOverlay()
                             }
@@ -298,20 +301,27 @@ class AppLockService : Service() {
         val repo = appStatRepo ?: return
         val lastOpenTime = appLastOpenTime[packageName] ?: return
         
-        // Don't accumulate if already locked
-        if (storage.isLocked(packageName)) {
+        // Calculate elapsed time
+        val elapsedSeconds = ((System.currentTimeMillis() - lastOpenTime) / 1000).toInt()
+        
+        // Skip if no time elapsed
+        if (elapsedSeconds <= 0) {
             appLastOpenTime.remove(packageName)
-            println("APP_LOCK: Not saving time for $packageName - already locked")
             return
         }
         
-        val elapsedSeconds = ((System.currentTimeMillis() - lastOpenTime) / 1000).toInt()
-        val previousAccumulated = storage.getAccumulatedSeconds(packageName)
-        val newAccumulated = previousAccumulated + elapsedSeconds
-        
-        storage.saveAccumulatedSeconds(packageName, newAccumulated)
+        // For locked apps: update accumulated time in TimerStorage
+        // Don't accumulate if already locked (overlay showing)
+        if (!storage.isLocked(packageName)) {
+            val previousAccumulated = storage.getAccumulatedSeconds(packageName)
+            val newAccumulated = previousAccumulated + elapsedSeconds
+            storage.saveAccumulatedSeconds(packageName, newAccumulated)
+            
+            Log.d("APP_LOCK", "Updated accumulated time for $packageName: ${newAccumulated}s (added ${elapsedSeconds}s)")
+            println("APP_LOCK: Updated accumulated time for $packageName: ${newAccumulated}s")
+        }
 
-        // Save to app_stat database
+        // For ALL apps: save usage time to app_stat database
         val date = getTodayDate()
         
         serviceScope.launch(Dispatchers.IO) {
@@ -328,6 +338,7 @@ class AppLockService : Service() {
                             dailyUsageTime = elapsedSeconds.toLong()
                         )
                     )
+                    Log.d("APP_LOCK", "Created new app stat for $packageName: ${elapsedSeconds}s on $date")
                 } else {
                     // Update existing entry
                     repo.upsert(
@@ -335,22 +346,20 @@ class AppLockService : Service() {
                             dailyUsageTime = existing.dailyUsageTime + elapsedSeconds
                         )
                     )
+                    Log.d("APP_LOCK", "Updated app stat for $packageName: +${elapsedSeconds}s (total: ${existing.dailyUsageTime + elapsedSeconds}s) on $date")
                 }
                 
-                Log.d("APP_LOCK", "Saved app stat for $packageName: ${elapsedSeconds}s on $date")
+                println("========== APP_LOCK: Saved usage stat to database ==========")
+                println("APP_LOCK: Package: $packageName")
+                println("APP_LOCK: Elapsed: ${elapsedSeconds}s")
+                println("APP_LOCK: Date: $date")
             } catch (e: Exception) {
                 Log.e("APP_LOCK", "Error saving app stat: ${e.message}")
+                println("APP_LOCK ERROR: Failed to save stat - ${e.message}")
             }
         }
         
         appLastOpenTime.remove(packageName)
-        
-        Log.d("APP_LOCK", "Saved accumulated time for $packageName: ${newAccumulated}s (added ${elapsedSeconds}s)")
-        println("========== APP_LOCK: Saved accumulated time ==========")
-        println("APP_LOCK: Package: $packageName")
-        println("APP_LOCK: Previous: ${previousAccumulated}s")
-        println("APP_LOCK: Elapsed: ${elapsedSeconds}s")
-        println("APP_LOCK: New Total: ${newAccumulated}s")
     }
     
     private fun getTodayDate(): String {

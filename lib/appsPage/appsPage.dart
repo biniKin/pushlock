@@ -64,7 +64,7 @@ class _AppspageState extends State<Appspage> {
                     name: app.appName, 
                     isLocked: app.isLocked, 
                     onTap: (){}, 
-                    usageTime: app.dailyUsageSeconds.toString(),
+                    usageTime: app.dailyUsageSeconds,
                     appImage: app.icon != null ? Image.memory(app.icon!) : Icon(Icons.apps),
                   );
                 },

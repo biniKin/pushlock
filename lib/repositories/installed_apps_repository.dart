@@ -46,9 +46,7 @@ class InstalledAppsRepository {
         packageName: packageName,
         appName: installedApp.name!,
         icon: installedApp.icon,
-        dailyUsageSeconds: stat != null
-            ? int.tryParse(stat.dailyUsageTime) ?? 0
-            : 0,
+        dailyUsageSeconds: stat?.dailyUsageTime ?? 0, // Now it's already an int
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
         versionName: installedApp.versionName!,
@@ -56,16 +54,53 @@ class InstalledAppsRepository {
     }).toList();
   }
 
-  /// Load cached apps
+  /// Load cached apps (app info only - no stats)
   Future<List<Appuimodel>> getCachedApps() async {
     return await cache.loadCachedApps();
   }
 
-  Future<void> updateCachedAppStatus({
-    required String packageName, required bool isLocked,  int? timeoutSeconds
-    }) async{
-    await cache.updateCachedAppStatus(packageName: packageName, isLocked: isLocked, timeoutSeconds: timeoutSeconds);
+  /// Refresh stats for cached apps (hybrid approach)
+  Future<List<Appuimodel>> refreshStatsForCachedApps(
+    List<Appuimodel> cachedApps,
+  ) async {
+    // Fetch fresh stats and locked apps
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final stats = await appStatsRepo.getAppsStatForDay(today);
+    final lockedApps = await lockedAppsRepo.getLockedApps();
+
+    // Create lookup maps
+    final statsMap = {for (final stat in stats) stat.packageName: stat};
+    final lockedAppsMap = {for (final app in lockedApps) app.packageName: app};
+
+    // Update cached apps with fresh stats
+    return cachedApps.map((cachedApp) {
+      final stat = statsMap[cachedApp.packageName];
+      final lockedApp = lockedAppsMap[cachedApp.packageName];
+
+      return Appuimodel(
+        packageName: cachedApp.packageName,
+        appName: cachedApp.appName,
+        icon: cachedApp.icon,
+        dailyUsageSeconds: stat?.dailyUsageTime ?? 0,
+        isLocked: lockedApp != null,
+        timeoutSeconds: lockedApp?.timeoutSeconds,
+        versionName: cachedApp.versionName,
+      );
+    }).toList();
   }
+
+  Future<void> updateCachedAppStatus({
+    required String packageName,
+    required bool isLocked,
+    int? timeoutSeconds,
+  }) async {
+    await cache.updateCachedAppStatus(
+      packageName: packageName,
+      isLocked: isLocked,
+      timeoutSeconds: timeoutSeconds,
+    );
+  }
+
   /// Scan → merge → cache
   Future<List<Appuimodel>> scanAndCacheApps() async {
     // 1. Scan installed apps

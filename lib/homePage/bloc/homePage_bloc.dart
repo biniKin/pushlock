@@ -16,13 +16,12 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
   final LockedAppsRepository lockedAppsRepo;
   final AppStatsRepository appStatsRepo;
   final PushupSessionCache pushupSessionCache;
-  
 
   HomepageBloc({
     required this.installedAppsRepo,
     required this.lockedAppsRepo,
     required this.appStatsRepo,
-    required this.pushupSessionCache
+    required this.pushupSessionCache,
   }) : super(HomepageInitial()) {
     on<LoadHomepageData>(_onLoadHomepage);
     on<RefreshHomepageData>(_onLoadHomepage);
@@ -41,24 +40,25 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
 
       // Check if this is a refresh event
       if (event is RefreshHomepageData) {
-        // Force scan and cache
+        // Force full scan and cache
         uiApps = await installedAppsRepo.scanAndCacheApps();
       } else {
-        // Try to load from cache first
+        // Hybrid approach: Try to load from cache first
         final cachedApps = await installedAppsRepo.getCachedApps();
 
         if (cachedApps.isEmpty) {
-          // No cache, scan and cache
+          // No cache, do full scan
           uiApps = await installedAppsRepo.scanAndCacheApps();
         } else {
-          // Use cached data
-          uiApps = cachedApps;
+          // Use cached app list but refresh stats
+          uiApps = await installedAppsRepo.refreshStatsForCachedApps(
+            cachedApps,
+          );
         }
       }
 
       // Sort by usage time
       uiApps.sort((a, b) => b.dailyUsageSeconds.compareTo(a.dailyUsageSeconds));
-      
 
       // Prepare dashboard data
       final chartApps = uiApps.take(4).toList();
@@ -81,21 +81,21 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
   Future _onLockAppRequest(
     LockAppRequested event,
     Emitter<HomepageState> emit,
-  ) async{
-    if(state is !HomepageLoaded) return;
+  ) async {
+    if (state is! HomepageLoaded) return;
     // get the current state
     final currentState = state as HomepageLoaded;
 
-    try{
-
-    
+    try {
       // call repo for lock the app (calls the method channel)
       final locked = await lockedAppsRepo.lockApp(event.app);
       locked ? print("app is locked successfully") : print("app is not locked");
 
-
       // save the push ups
-      await pushupSessionCache.savePushUp(packageName: event.app.packageName, pushupCount: event.pushupscount);
+      await pushupSessionCache.savePushUp(
+        packageName: event.app.packageName,
+        pushupCount: event.pushupscount,
+      );
 
       // call cache update
       await installedAppsRepo.updateCachedAppStatus(
@@ -104,10 +104,9 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         timeoutSeconds: event.app.timeoutSeconds,
       );
 
-
       // update the app on the ui
       final updatedApps = currentState.mostUsedApps.map((app) {
-      if (app.packageName == event.app.packageName) {
+        if (app.packageName == event.app.packageName) {
           return app.copyWith(
             isLocked: true,
             timeoutSeconds: event.app.timeoutSeconds,
@@ -119,7 +118,6 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
       // 3️⃣ Recalculate counts
       final lockedCount = updatedApps.where((a) => a.isLocked).length;
 
-
       // emit
       emit(
         currentState.copyWith(
@@ -127,22 +125,20 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
           lockedAppsCount: lockedCount,
         ),
       );
-    }catch(e){
+    } catch (e) {
       print("error: ${e}");
     }
   }
 
   Future _onUnlockAppRequest(
     UnlockAppRequested event,
-    Emitter<HomepageState> emit
-  )async{
-     if(state is !HomepageLoaded) return;
+    Emitter<HomepageState> emit,
+  ) async {
+    if (state is! HomepageLoaded) return;
     // get the current state
     final currentState = state as HomepageLoaded;
 
-    try{
-
-    
+    try {
       // call repo for lock the app (calls the method channel)
       await lockedAppsRepo.unlockApp(event.packageName);
 
@@ -152,21 +148,16 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         isLocked: false,
       );
 
-
       // update the app on the ui
       final updatedApps = currentState.mostUsedApps.map((app) {
-      if (app.packageName == event.packageName) {
-          return app.copyWith(
-            isLocked: false,
-            
-          );
+        if (app.packageName == event.packageName) {
+          return app.copyWith(isLocked: false);
         }
         return app;
       }).toList();
 
       // 3️⃣ Recalculate counts
       final lockedCount = updatedApps.where((a) => a.isLocked).length;
-
 
       // emit
       emit(
@@ -175,11 +166,9 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
           lockedAppsCount: lockedCount,
         ),
       );
-    }catch(e){
+    } catch (e) {
       print("error: ${e}");
     }
-
-
   }
 
   List<Appuimodel> buildUiApps({
@@ -201,9 +190,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         packageName: packageName,
         appName: installedApp.name ?? 'Unknown',
         icon: installedApp.icon,
-        dailyUsageSeconds: stat != null
-            ? int.tryParse(stat.dailyUsageTime) ?? 0
-            : 0,
+        dailyUsageSeconds: stat != null ? stat.dailyUsageTime ?? 0 : 0,
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
         versionName: installedApp.versionName ?? '',

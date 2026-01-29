@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pushlock/util/time_formatter.dart';
 
 class Appslitstile extends StatelessWidget {
   final String name;
   final bool isLocked;
-  final String usageTime;
+  final int usageTime;
   final VoidCallback onTap;
   final appImage;
   const Appslitstile({super.key, required this.appImage,required this.name, required this.isLocked, required this.onTap, required this.usageTime});
@@ -45,7 +46,7 @@ class Appslitstile extends StatelessWidget {
                     children: [
                       //Icon(Icons.timelapse, size: 16,),
                       Text(
-                        usageTime,
+                        TimeFormatter.formatSeconds(usageTime),
                         style: TextStyle(color: Colors.white70),
                       ),
                     ],

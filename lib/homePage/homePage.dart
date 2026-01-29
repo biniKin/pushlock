@@ -30,7 +30,7 @@ Widget build(BuildContext context) {
   return SafeArea(
     child: Scaffold(
       extendBodyBehindAppBar: true,
-      // backgroundColor: Colors.black,
+      backgroundColor: Colors.grey[500],
       
       body: Stack(
         children: [
