@@ -22,6 +22,21 @@ class HomepageLoaded extends HomepageState {
     required this.totalAppsCount,
     required this.mostUsedApps,
   });
+
+  HomepageLoaded copyWith({
+    List<Appuimodel>? chartApps,
+    int? lockedAppsCount,
+    int? totalAppsCount,
+    List<Appuimodel>? mostUsedApps,
+
+  }){
+    return HomepageLoaded(
+      chartApps: chartApps ?? this.chartApps, 
+      lockedAppsCount: lockedAppsCount ?? this.lockedAppsCount, 
+      totalAppsCount: totalAppsCount ?? this.totalAppsCount, 
+      mostUsedApps: mostUsedApps ?? this.mostUsedApps,
+    );
+  }
 }
 
 class HomepageError extends HomepageState {

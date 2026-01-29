@@ -11,6 +11,35 @@ class InstalledAppsCache {
     await box.put("apps", uiApps.map((e) => e.toJson()).toList());
   }
 
+  Future<void> updateCachedAppStatus({
+    required String packageName,
+    required bool isLocked,
+    int? timeoutSeconds,
+  }) async {
+    final box = await Hive.openBox(boxName);
+    final raw = box.get('apps');
+
+    if (raw == null) return;
+
+    final apps = (raw as List)
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final updatedApps = apps.map((app) {
+      if (app['packageName'] == packageName) {
+        return {
+          ...app,
+          'isLocked': isLocked,
+          'timeoutSeconds': timeoutSeconds,
+        };
+      }
+      return app;
+    }).toList();
+
+    await box.put('apps', updatedApps);
+  }
+
+
   // getFromCache
   Future<List<Appuimodel>> loadCachedApps() async {
     final box = await Hive.openBox(boxName);

@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:installed_apps/app_info.dart';
+import 'package:pushlock/data/installed_apps_cache.dart';
 import 'package:pushlock/model/appStatModel.dart';
 import 'package:pushlock/model/appUiModel.dart';
 import 'package:pushlock/homePage/bloc/homePage_event.dart';
@@ -13,6 +14,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
   final InstalledAppsRepository installedAppsRepo;
   final LockedAppsRepository lockedAppsRepo;
   final AppStatsRepository appStatsRepo;
+  
 
   HomepageBloc({
     required this.installedAppsRepo,
@@ -21,6 +23,8 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
   }) : super(HomepageInitial()) {
     on<LoadHomepageData>(_onLoadHomepage);
     on<RefreshHomepageData>(_onLoadHomepage);
+    on<LockAppRequested>(_onLockAppRequest);
+    on<UnlockAppRequested>(_onUnlockAppRequest);
   }
 
   Future<void> _onLoadHomepage(
@@ -68,6 +72,105 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
     } catch (e) {
       emit(HomepageError(e.toString()));
     }
+  }
+
+  Future _onLockAppRequest(
+    LockAppRequested event,
+    Emitter<HomepageState> emit,
+  ) async{
+    if(state is !HomepageLoaded) return;
+    // get the current state
+    final currentState = state as HomepageLoaded;
+
+    try{
+
+    
+      // call repo for lock the app (calls the method channel)
+      await lockedAppsRepo.lockApp(event.app);
+
+      // call cache update
+      await installedAppsRepo.updateCachedAppStatus(
+        packageName: event.app.packageName,
+        isLocked: true,
+        timeoutSeconds: event.app.timeoutSeconds,
+      );
+
+
+      // update the app on the ui
+      final updatedApps = currentState.mostUsedApps.map((app) {
+      if (app.packageName == event.app.packageName) {
+          return app.copyWith(
+            isLocked: true,
+            timeoutSeconds: event.app.timeoutSeconds,
+          );
+        }
+        return app;
+      }).toList();
+
+      // 3️⃣ Recalculate counts
+      final lockedCount = updatedApps.where((a) => a.isLocked).length;
+
+
+      // emit
+      emit(
+        currentState.copyWith(
+          mostUsedApps: updatedApps,
+          lockedAppsCount: lockedCount,
+        ),
+      );
+    }catch(e){
+      print("error: ${e}");
+    }
+  }
+
+  Future _onUnlockAppRequest(
+    UnlockAppRequested event,
+    Emitter<HomepageState> emit
+  )async{
+     if(state is !HomepageLoaded) return;
+    // get the current state
+    final currentState = state as HomepageLoaded;
+
+    try{
+
+    
+      // call repo for lock the app (calls the method channel)
+      await lockedAppsRepo.unlockApp(event.packageName);
+
+      // call cache update
+      await installedAppsRepo.updateCachedAppStatus(
+        packageName: event.packageName,
+        isLocked: false,
+      );
+
+
+      // update the app on the ui
+      final updatedApps = currentState.mostUsedApps.map((app) {
+      if (app.packageName == event.packageName) {
+          return app.copyWith(
+            isLocked: false,
+            
+          );
+        }
+        return app;
+      }).toList();
+
+      // 3️⃣ Recalculate counts
+      final lockedCount = updatedApps.where((a) => a.isLocked).length;
+
+
+      // emit
+      emit(
+        currentState.copyWith(
+          mostUsedApps: updatedApps,
+          lockedAppsCount: lockedCount,
+        ),
+      );
+    }catch(e){
+      print("error: ${e}");
+    }
+
+
   }
 
   List<Appuimodel> buildUiApps({

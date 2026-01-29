@@ -61,6 +61,11 @@ class InstalledAppsRepository {
     return await cache.loadCachedApps();
   }
 
+  Future<void> updateCachedAppStatus({
+    required String packageName, required bool isLocked,  int? timeoutSeconds
+    }) async{
+    await cache.updateCachedAppStatus(packageName: packageName, isLocked: isLocked, timeoutSeconds: timeoutSeconds);
+  }
   /// Scan → merge → cache
   Future<List<Appuimodel>> scanAndCacheApps() async {
     // 1. Scan installed apps

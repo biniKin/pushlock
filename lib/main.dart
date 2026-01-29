@@ -2,6 +2,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pushlock/appsPage/bloc/apps_bloc.dart';
 import 'package:pushlock/camerPage/camera_page.dart';
 import 'package:pushlock/camerPage/unlockPage.dart';
@@ -23,6 +25,7 @@ void main()async {
   final InstalledAppsRepository installedAppsRepo = InstalledAppsRepository(cache, appStatsRepo, lockedAppsRepo);
   
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
   cameras = await availableCameras();
   runApp(
     MultiBlocProvider( 

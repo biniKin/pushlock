@@ -51,4 +51,19 @@ class Appuimodel {
       timeoutSeconds: json["timeoutSeconds"],
     );
   }
+  Appuimodel copyWith({
+    bool? isLocked,
+    int? timeoutSeconds,
+  }) {
+    return Appuimodel(
+      packageName: packageName,
+      appName: appName,
+      icon: icon,
+      dailyUsageSeconds: dailyUsageSeconds,
+      isLocked: isLocked ?? this.isLocked,
+      timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
+      versionName: versionName,
+    );
+  }
+
 }
