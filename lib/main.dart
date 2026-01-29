@@ -8,6 +8,8 @@ import 'package:pushlock/appsPage/bloc/apps_bloc.dart';
 import 'package:pushlock/camerPage/camera_page.dart';
 import 'package:pushlock/camerPage/unlockPage.dart';
 import 'package:pushlock/data/installed_apps_cache.dart';
+import 'package:pushlock/data/pushup_session_cache.dart';
+import 'package:pushlock/data/pushup_session_model.dart';
 import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/homePage.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
@@ -23,14 +25,16 @@ void main()async {
   final AppStatsRepository appStatsRepo = AppStatsRepository();
   final InstalledAppsCache cache = InstalledAppsCache();
   final InstalledAppsRepository installedAppsRepo = InstalledAppsRepository(cache, appStatsRepo, lockedAppsRepo);
+  final PushupSessionCache pushupSessionCache = PushupSessionCache();
   
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+
   cameras = await availableCameras();
   runApp(
     MultiBlocProvider( 
       providers: [
-        BlocProvider<HomepageBloc>(create: (_) => HomepageBloc(installedAppsRepo: installedAppsRepo, lockedAppsRepo: lockedAppsRepo, appStatsRepo: appStatsRepo)),
+        BlocProvider<HomepageBloc>(create: (_) => HomepageBloc(installedAppsRepo: installedAppsRepo, lockedAppsRepo: lockedAppsRepo, appStatsRepo: appStatsRepo, pushupSessionCache: pushupSessionCache)),
         BlocProvider<AppsBloc>(create: (_) => AppsBloc(installedAppsRepo)),
       ],
       child: const MyApp(),

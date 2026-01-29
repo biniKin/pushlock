@@ -10,10 +10,8 @@ class RefreshHomepageData extends HomepageEvent {}
 
 class LockAppRequested extends HomepageEvent {
   final LockedApp app;
-
-  LockAppRequested({
-    required this.app
-  });
+  final int pushupscount;
+  LockAppRequested({required this.app, required this.pushupscount});
 }
 
 class UnlockAppRequested extends HomepageEvent {

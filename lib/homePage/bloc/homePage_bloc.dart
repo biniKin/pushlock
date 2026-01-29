@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:pushlock/data/installed_apps_cache.dart';
+import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/model/appStatModel.dart';
 import 'package:pushlock/model/appUiModel.dart';
 import 'package:pushlock/homePage/bloc/homePage_event.dart';
@@ -14,12 +15,14 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
   final InstalledAppsRepository installedAppsRepo;
   final LockedAppsRepository lockedAppsRepo;
   final AppStatsRepository appStatsRepo;
+  final PushupSessionCache pushupSessionCache;
   
 
   HomepageBloc({
     required this.installedAppsRepo,
     required this.lockedAppsRepo,
     required this.appStatsRepo,
+    required this.pushupSessionCache
   }) : super(HomepageInitial()) {
     on<LoadHomepageData>(_onLoadHomepage);
     on<RefreshHomepageData>(_onLoadHomepage);
@@ -86,7 +89,12 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
 
     
       // call repo for lock the app (calls the method channel)
-      await lockedAppsRepo.lockApp(event.app);
+      final locked = await lockedAppsRepo.lockApp(event.app);
+      locked ? print("app is locked successfully") : print("app is not locked");
+
+
+      // save the push ups
+      await pushupSessionCache.savePushUp(packageName: event.app.packageName, pushupCount: event.pushupscount);
 
       // call cache update
       await installedAppsRepo.updateCachedAppStatus(

@@ -252,6 +252,7 @@ Future<void> appDialog({
                         timeoutSeconds: selectedMinutes! *60,
                         
                       ),
+                      pushupscount: pushups.toInt()
                     ),
                   );
 

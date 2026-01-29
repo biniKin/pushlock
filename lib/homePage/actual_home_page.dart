@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/bloc/homePage_event.dart';
 import 'package:pushlock/homePage/bloc/homePage_state.dart';
@@ -24,6 +25,8 @@ class _ActualHomePageState extends State<ActualHomePage> {
     super.initState();
     context.read<HomepageBloc>().add(LoadHomepageData());
   }
+
+  
 
   @override
   Widget build(BuildContext context) {
@@ -82,13 +85,32 @@ class _ActualHomePageState extends State<ActualHomePage> {
                 physics: const NeverScrollableScrollPhysics(),
                 itemBuilder: (context, index) {
                   final app = apps[index];
+                  
+                  print("push up count");
                   return  Appslitstile(
                     name: app.appName, 
                     isLocked: app.isLocked, 
                     onTap: ()async{
-                      app.isLocked ? await unlockAppDialog(context: context, appName: app.appName, packageName: app.packageName, appIcon: app.icon!, timeoutMinutes: app.timeoutSeconds!, pushups: 10) : await appDialog(context: context,appIcon: app.icon ,isLocked: false, appName: app.appName, packageName: app.packageName, );
+                      final pushUpCount = await PushupSessionCache().getPushupCount(app.packageName);
+                      app.isLocked ? 
+                      await unlockAppDialog(
+                        context: context, 
+                        appName: app.appName, 
+                        packageName: app.packageName, 
+                        appIcon: app.icon!, 
+                        timeoutMinutes: app.timeoutSeconds!, 
+                        pushups: pushUpCount
+                        ) :
+
+                        await appDialog(
+                          context: context,
+                          appIcon: app.icon ,
+                          isLocked: false, 
+                          appName: app.appName, 
+                          packageName: app.packageName, 
+                        );
                     }, 
-                    usageTime: "2 hours",
+                    usageTime: app.dailyUsageSeconds.toString(),
                     appImage: app.icon  != null ? Image.memory(app.icon!) : Icon(Icons.apps),
                   );
                 },

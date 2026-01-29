@@ -3,14 +3,14 @@ class LockedApp {
   final String appName;
   final int timeoutSeconds;
   final bool isStrict;
-  final int pushups;
+
 
   LockedApp({
     required this.packageName,
     required this.appName,
     required this.isStrict,
     required this.timeoutSeconds,
-    required this.pushups
+
   });
 
   // form json
@@ -20,7 +20,7 @@ class LockedApp {
       appName: json["appName"],
       isStrict: json["isStrict"],
       timeoutSeconds: json["timeoutSecond"] ?? json["timeoutSeconds"],
-      pushups: json["pushup"]
+
     );
   }
 
