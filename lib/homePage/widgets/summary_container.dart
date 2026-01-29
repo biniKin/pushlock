@@ -13,7 +13,7 @@ class SummaryContainer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.grey[800]!),
       ),
       child: Row(

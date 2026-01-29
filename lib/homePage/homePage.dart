@@ -52,18 +52,18 @@ Widget build(BuildContext context) {
           ),
           
 
-          // Positioned(
-          //   left: 60,
-          //   right: 60,
-          //   bottom: 20,
-          //   child: _FloatingBottomNav(
-          //     currentIndex: currentIndex, 
-          //     onTap: (index){
-          //     setState(() {
-          //       currentIndex = index;
-          //     });
-          //   }),
-          // ),
+          Positioned(
+            left: 60,
+            right: 60,
+            bottom: 20,
+            child: _FloatingBottomNav(
+              currentIndex: currentIndex, 
+              onTap: (index){
+              setState(() {
+                currentIndex = index;
+              });
+            }),
+          ),
 
         ],
       ),
@@ -85,35 +85,43 @@ class _FloatingBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: Container(
-        height: 70,
-        decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 56, 56, 56),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.grey[400]!),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: onTap,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          selectedItemColor: Colors.white,
-          
-          unselectedItemColor: Colors.grey,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: "Home",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.apps),
-              label: "Apps",
-            ),
-          ],
-        ),
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 56, 56, 56),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.grey[600]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey[900]!,
+            
+            blurRadius: 5,
+            blurStyle: BlurStyle.outer,
+            offset: Offset(0, 0)
+          ),
+    
+         
+        ]
+      ),
+      child: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: onTap,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        selectedItemColor: Colors.white,
+        
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "Home",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.apps),
+            label: "Apps",
+          ),
+        ],
       ),
     );
   }

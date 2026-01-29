@@ -38,6 +38,10 @@ class _ActualHomePageState extends State<ActualHomePage> {
           );
         } else if(state is HomepageLoaded){
           final apps = state.mostUsedApps;
+          final statapps = state.chartApps;
+          statapps.forEach((element) {
+            print(element.dailyUsageSeconds);
+          },);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -69,13 +73,24 @@ class _ActualHomePageState extends State<ActualHomePage> {
               SummaryContainer(lockedAppsNumber: state.lockedAppsCount, totalApps: state.totalAppsCount),
               const SizedBox(height: 20),
               // Most used apps list
-              const Text(
-                "Most Used Apps",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Most Used Apps",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  // Text(
+                  //   "see more", 
+                  //   style: TextStyle(
+                  //     color: Colors.deepPurpleAccent
+                  //   ),
+                  // )
+                ],
               ),
               const SizedBox(height: 12),
               // Non-scrollable list
@@ -86,12 +101,13 @@ class _ActualHomePageState extends State<ActualHomePage> {
                 itemBuilder: (context, index) {
                   final app = apps[index];
                   
-                  print("push up count");
+                  
                   return  Appslitstile(
                     name: app.appName, 
                     isLocked: app.isLocked, 
                     onTap: ()async{
                       final pushUpCount = await PushupSessionCache().getPushupCount(app.packageName);
+                      print("pushup count for ${app.appName}: $pushUpCount");
                       app.isLocked ? 
                       await unlockAppDialog(
                         context: context, 
@@ -110,7 +126,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
                           packageName: app.packageName, 
                         );
                     }, 
-                    usageTime: app.dailyUsageSeconds.toString(),
+                    usageTime: "2 hours",
                     appImage: app.icon  != null ? Image.memory(app.icon!) : Icon(Icons.apps),
                   );
                 },

@@ -58,6 +58,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
 
       // Sort by usage time
       uiApps.sort((a, b) => b.dailyUsageSeconds.compareTo(a.dailyUsageSeconds));
+      
 
       // Prepare dashboard data
       final chartApps = uiApps.take(4).toList();

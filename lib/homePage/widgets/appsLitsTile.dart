@@ -19,7 +19,7 @@ class Appslitstile extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.grey.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(5),
           border: Border.all(color: Colors.grey[800]!),
         ),
         child: Row(
@@ -40,9 +40,15 @@ class Appslitstile extends StatelessWidget {
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   
-                  Text(
-                    usageTime,
-                    style: TextStyle(color: Colors.white70),
+                  
+                  Row(
+                    children: [
+                      //Icon(Icons.timelapse, size: 16,),
+                      Text(
+                        usageTime,
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
                   ),
                 ],
               ),

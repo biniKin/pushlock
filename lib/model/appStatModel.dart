@@ -14,7 +14,7 @@ class Appstatmodel {
   factory Appstatmodel.fromJson(Map<String, dynamic> json){
     return Appstatmodel(
       appName: json['appName'], 
-      dailyUsageTime: json["dailyUsageTime"], 
+      dailyUsageTime: json["dailyUsageTime"],
       date: json["date"], 
       packageName: json["packageName"],
     );
