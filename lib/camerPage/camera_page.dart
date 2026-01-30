@@ -2,27 +2,32 @@ import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/util/calibration_state.dart';
 import 'package:pushlock/main.dart';
 import 'package:pushlock/util/pushUpDetection.dart';
 import 'package:pushlock/util/pushup_state.dart';
 
-
-
-
-
 class CameraPage extends StatefulWidget {
-  const CameraPage({super.key});
+  const CameraPage({super.key, required this.packageName, this.appName = ''});
+
+  final String packageName;
+  final String appName;
 
   @override
   State<CameraPage> createState() => _CameraPageState();
 }
 
 class _CameraPageState extends State<CameraPage> {
-  static const int CONFIRM_FRAMES = 4;
-  static const int CALIBRATION_FRAMES = 20;
-  
+  static const int CONFIRM_FRAMES = 2;
+  static const int CALIBRATION_FRAMES = 10;
+  static const platform = MethodChannel('overlay_channel');
+
+  late int pushupcountforapp;
+  final PushupSessionCache pushupSessionCache = PushupSessionCache();
+
   late CameraController controller;
   late PoseDetector poseDetector;
   final options = PoseDetectorOptions();
@@ -34,7 +39,7 @@ class _CameraPageState extends State<CameraPage> {
 
   // Add these declarations after your existing variables
   double? calibratedTopAngle;
-  double? calibratedTorsoAngle; 
+  double? calibratedTorsoAngle;
   double? topThreshold;
   double? bottomThreshold;
 
@@ -46,28 +51,34 @@ class _CameraPageState extends State<CameraPage> {
 
   Pushupdetection pushupdetection = Pushupdetection();
 
-  
   double _average(List<double> values) {
     if (values.isEmpty) return 0.0;
     return values.reduce((a, b) => a + b) / values.length;
   }
 
-
   @override
   void initState() {
     super.initState();
     _initial();
-
+    // cal push ups
+    _getPushupCount();
   }
 
-  void _initial()async{
+  void _getPushupCount() async {
+    pushupcountforapp = await pushupSessionCache.getPushupCount(
+      widget.packageName,
+    );
+    print("number of push ups of this app is: $pushupcountforapp");
+  }
+
+  void _initial() async {
     poseDetector = PoseDetector(options: PoseDetectorOptions());
 
     controller = CameraController(
       cameras[1],
       ResolutionPreset.medium,
       enableAudio: false,
-      
+      fps: 10
     );
 
     controller.initialize().then((_) {
@@ -77,7 +88,10 @@ class _CameraPageState extends State<CameraPage> {
         if (_isProcessing) return;
         _isProcessing = true;
 
-        final inputImage = pushupdetection.inputImageFromCameraImage(img, pushupdetection.getImageRotation(controller));
+        final inputImage = pushupdetection.inputImageFromCameraImage(
+          img,
+          pushupdetection.getImageRotation(controller),
+        );
         final poses = await poseDetector.processImage(inputImage);
 
         if (poses.isNotEmpty) {
@@ -87,7 +101,6 @@ class _CameraPageState extends State<CameraPage> {
             return;
           }
           detectPushUp(poses.first);
-        
         }
 
         _isProcessing = false;
@@ -97,15 +110,61 @@ class _CameraPageState extends State<CameraPage> {
     });
   }
 
+  Future<void> _unlockApp() async {
+    try {
+      await platform.invokeMethod('unlock', {
+        'packageName': widget.packageName,
+      });
+    } catch (e) {
+      print('Error unlocking app: $e');
+    }
+  }
+
+  Future<void> _handleUnlock() async {
+    // Stop camera
+    await controller.stopImageStream();
+
+    // Show success dialog
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('🎉 Great Job!'),
+        content: Text(
+          'You completed $pushUpCount push-ups!\n\n${widget.appName} is now unlocked.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              // Unlock the app
+              await _unlockApp();
+
+              // Close dialog
+              if (mounted) Navigator.of(context).pop();
+
+              // Close camera page
+              if (mounted) Navigator.of(context).pop();
+            },
+            child: Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void detectPushUp(Pose pose) {
     if (!pushupdetection.bothArmsVisible(pose)) return;
 
     final angle = pushupdetection.getCombinedElbowAngle(pose);
     if (angle == null || calibratedTopAngle == null) return;
+    print(angle);
 
     switch (phase) {
       case PushUpState.top:
-        if (angle < topThreshold!) {  // Use calibrated threshold
+        if (angle < topThreshold!) {
+          // Use calibrated threshold
           downFrames++;
           if (downFrames >= CONFIRM_FRAMES) {
             phase = PushUpState.down;
@@ -118,7 +177,8 @@ class _CameraPageState extends State<CameraPage> {
         break;
 
       case PushUpState.down:
-        if (angle < bottomThreshold!) {  // Use calibrated threshold
+        if (angle < bottomThreshold!) {
+          // Use calibrated threshold
           bottomFrames++;
           if (bottomFrames >= CONFIRM_FRAMES) {
             phase = PushUpState.bottom;
@@ -131,7 +191,8 @@ class _CameraPageState extends State<CameraPage> {
         break;
 
       case PushUpState.bottom:
-        if (angle > bottomThreshold! + 20) {  // Small buffer above bottom
+        if (angle > bottomThreshold! + 30) {
+          // Small buffer above bottom
           goingUpFrames++;
           if (goingUpFrames >= CONFIRM_FRAMES) {
             phase = PushUpState.up;
@@ -144,16 +205,21 @@ class _CameraPageState extends State<CameraPage> {
         break;
 
       case PushUpState.up:
-        if (angle > topThreshold! - 10) {  // Small buffer below top
+        if (angle > topThreshold! - 20) {
+          // Small buffer below top
           topFrames++;
           if (topFrames >= CONFIRM_FRAMES) {
             phase = PushUpState.top;
             topFrames = 0;
             pushUpCount++;
+
             debugPrint("✅ PUSH-UP COUNTED: $pushUpCount");
-            setState(() {
-              
-            });
+            setState(() {});
+
+            // Check if pushup count matches required count
+            if (pushUpCount >= pushupcountforapp) {
+              _handleUnlock();
+            }
           }
         } else {
           topFrames = 0;
@@ -161,14 +227,12 @@ class _CameraPageState extends State<CameraPage> {
         break;
     }
   }
-  
+
   DetectorMode mode = DetectorMode.calibrating;
-
-
 
   void handleCalibration(Pose pose) {
     if (!pushupdetection.bothArmsVisible(pose)) return;
-    if (!pushupdetection.isBodyHorizontal(pose)) return;
+    // if (!pushupdetection.isBodyHorizontal(pose)) return;
 
     final elbowAngle = pushupdetection.getCombinedElbowAngle(pose);
     if (elbowAngle == null) return;
@@ -178,9 +242,7 @@ class _CameraPageState extends State<CameraPage> {
     elbowAngles.add(elbowAngle);
     torsoAngles.add(torsoAngle);
 
-    debugPrint(
-      "📏 Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES",
-    );
+    debugPrint("📏 Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES");
 
     if (elbowAngles.length >= CALIBRATION_FRAMES) {
       calibratedTopAngle = _average(elbowAngles);
@@ -201,8 +263,6 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-
-
   @override
   void dispose() {
     controller.stopImageStream();
@@ -211,7 +271,6 @@ class _CameraPageState extends State<CameraPage> {
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -219,9 +278,7 @@ class _CameraPageState extends State<CameraPage> {
       body: Stack(
         children: [
           // ───── Camera Preview ─────
-          Positioned.fill(
-            child: CameraPreview(controller),
-          ),
+          Positioned.fill(child: CameraPreview(controller)),
 
           // ───── Dark gradient overlay (cinematic feel) ─────
           Positioned.fill(
@@ -230,11 +287,7 @@ class _CameraPageState extends State<CameraPage> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black54,
-                    Colors.transparent,
-                    Colors.black54,
-                  ],
+                  colors: [Colors.black54, Colors.transparent, Colors.black54],
                 ),
               ),
             ),
@@ -320,7 +373,6 @@ class _CameraPageState extends State<CameraPage> {
               ),
             ),
           ),
-          
         ],
       ),
     );

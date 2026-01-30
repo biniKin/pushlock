@@ -498,11 +498,31 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent) // Important: update the intent
         handleIntent(intent)
     }
 
     private fun handleIntent(intent: Intent?) {
         intent?.let {
+            // Check if we should open camera page
+            val openCamera = it.getBooleanExtra("openCamera", false)
+            val packageName = it.getStringExtra("packageName")
+            val appName = it.getStringExtra("appName")
+            
+            if (openCamera && packageName != null) {
+                // Navigate to camera page via Flutter
+                flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
+                    MethodChannel(messenger, DEEP_LINK_CHANNEL).invokeMethod(
+                        "openCamera",
+                        mapOf(
+                            "packageName" to packageName,
+                            "appName" to (appName ?: "")
+                        )
+                    )
+                }
+                return
+            }
+            
             // Check if this is a deep link to unlock page
             val route = it.getStringExtra("route")
             val data = it.data

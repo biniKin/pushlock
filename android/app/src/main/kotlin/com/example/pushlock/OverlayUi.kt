@@ -31,19 +31,16 @@ class OverlayUi(private val context: Context) {
     fun showOverlay(packageName: String, appName: String) {
         if (flutterView != null) return
 
-        // flutterEngine = FlutterEngine(context).apply {
-        //     dartExecutor.executeDartEntrypoint(
-        //         DartExecutor.DartEntrypoint.createDefault()
-        //     )
-        // }
-        flutterEngine = FlutterEngine(context).apply {
-            dartExecutor.executeDartEntrypoint(
-                DartExecutor.DartEntrypoint.createCustom(
-                    FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-                    "overlayMain" // <-- This must match the Dart function name
-                )
-            )
-        }
+        // Create FlutterEngine with overlayMain entry point
+        flutterEngine = FlutterEngine(context)
+        
+        // Execute the overlayMain function from lib/main.dart
+        val dartEntrypoint = DartExecutor.DartEntrypoint(
+            io.flutter.FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+            "overlayMain"
+        )
+        
+        flutterEngine!!.dartExecutor.executeDartEntrypoint(dartEntrypoint)
 
 
         // SINGLE MethodChannel
@@ -59,6 +56,27 @@ class OverlayUi(private val context: Context) {
                     val pkg = call.argument<String>("packageName")
                     if (pkg != null) {
                         (context as AppLockService).unlockApp(pkg)
+                        result.success(true)
+                    } else {
+                        result.error("ERR", "packageName missing", null)
+                    }
+                }
+                "openMainApp" -> {
+                    val pkg = call.argument<String>("packageName")
+                    val appName = call.argument<String>("appName")
+                    if (pkg != null) {
+                        // Remove overlay first
+                        removeOverlay()
+                        
+                        // Open main Flutter app with camera page
+                        val intent = Intent(context, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            putExtra("openCamera", true)
+                            putExtra("packageName", pkg)
+                            putExtra("appName", appName)
+                        }
+                        context.startActivity(intent)
                         result.success(true)
                     } else {
                         result.error("ERR", "packageName missing", null)
