@@ -209,6 +209,7 @@ class AppLockService : Service() {
                             }
                             
                             val lockedApp = currentRepo.getLockedApp(foregroundApp)
+                            val name = getAppName(foregroundApp)
                             
                             if (lockedApp != null) {
                                 println("APP_LOCK: Found locked app: $foregroundApp")
@@ -216,7 +217,7 @@ class AppLockService : Service() {
                                 if (storage.isLocked(foregroundApp)) {
                                     Log.d("APP_LOCK", "App $foregroundApp is locked, showing overlay")
                                     println("APP_LOCK: App $foregroundApp is ALREADY LOCKED, showing overlay")
-                                    overlayUi?.showOverlay()
+                                    overlayUi?.showOverlay(foregroundApp, name)
                                 } else {
                                     // Get accumulated time and timeout
                                     val accumulatedSeconds = storage.getAccumulatedSeconds(foregroundApp)
@@ -233,7 +234,7 @@ class AppLockService : Service() {
                                     if (remainingSeconds <= 0) {
                                         // Time's up, lock the app
                                         storage.setLocked(foregroundApp, true)
-                                        overlayUi?.showOverlay()
+                                        overlayUi?.showOverlay(foregroundApp, name)
                                         Log.d("APP_LOCK", "Time's up for $foregroundApp, showing overlay")
                                         println("========== APP_LOCK: TIME'S UP! Showing overlay ==========")
                                     } else {
@@ -264,6 +265,7 @@ class AppLockService : Service() {
                             if (currentRepo == null || currentStorage == null) return@launch
                             
                             val lockedApp = currentRepo.getLockedApp(app)
+                            val name = getAppName(app)
                             if (lockedApp != null && !currentStorage.isLocked(app)) {
                                 // Check if timeout reached
                                 val lastOpenTime = appLastOpenTime[app]
@@ -279,7 +281,7 @@ class AppLockService : Service() {
                                         // Time's up
                                         currentStorage.saveAccumulatedSeconds(app, timeoutSeconds)
                                         currentStorage.setLocked(app, true)
-                                        overlayUi?.showOverlay()
+                                        overlayUi?.showOverlay(app, name)
                                         appLastOpenTime.remove(app)
                                         Log.d("APP_LOCK", "Timeout reached for $app, showing overlay")
                                         println("========== APP_LOCK: TIMEOUT REACHED! Total: ${totalAccumulated}s, showing overlay ==========")

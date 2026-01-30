@@ -12,12 +12,32 @@ import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/data/pushup_session_model.dart';
 import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/homePage.dart';
+import 'package:pushlock/overlayPage/overlay_lock_page.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
 import 'package:pushlock/repositories/locked_apps_repository.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 late List<CameraDescription> cameras;
+
+
+void overlayMain(){
+  runApp(OverlayApp());
+}
+
+class OverlayApp extends StatelessWidget {
+  const OverlayApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: const OverlayLockPage(packageName: '', appName: ''),
+    );
+  }
+}
+
 
 void main()async {
   
@@ -51,7 +71,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  static const platform = MethodChannel('com.example.pushlock/navigation');
+  static const platform = MethodChannel('overlay_channel');
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   @override
@@ -59,11 +79,20 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     // Listen for navigation events from native Android
-    platform.setMethodCallHandler((call) async {
-      if (call.method == 'navigateToUnlock') {
-        navigatorKey.currentState?.pushNamed('/unlock');
-      }
-    });
+    // platform.setMethodCallHandler((call) async {
+    //   if (call.method == 'showOverlay') {
+    //     final packageName = call.arguments['packageName'];
+    //     final appName = call.arguments['appName'];
+    //     // Show overlay page in Flutter
+    //     _showOverlayPage(packageName, appName);
+    //   }
+    // });
+  }
+
+  void _showOverlayPage(String packageName, String appName) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => OverlayLockPage(packageName: packageName, appName: appName),
+    ));
   }
 
   @override
@@ -71,15 +100,13 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
+     
+      
       initialRoute: '/',
       routes: {
-        '/': (context) => const CameraPage(),
+        '/': (context) => const Homepage(),
         '/unlock': (context) => const Unlockpage(),
-
+        // 'overlay_lock': (_) => const OverlayLockPage()
       },
     );
   }

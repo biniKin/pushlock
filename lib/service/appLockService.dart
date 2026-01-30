@@ -83,13 +83,17 @@ class AppLockService {
   }
 
   // unlockApp: packageName - resets timer and removes overlay
-  Future<bool> unlockApp(String packageName) async {
+  Future unlockApp(String packageName) async {
     try {
-      final result = await platform.invokeMethod<bool>(
-        "unlockApp",
-        packageName,
-      );
-      return result ?? false;
+      // final result = await platform.invokeMethod<bool>(
+      //   "unlockApp",
+      //   packageName,
+      // );
+
+      MethodChannel('overlay_channel')
+        .invokeMethod('unlock', {'packageName': packageName});
+
+      // return result ?? false;
     } catch (e) {
       print("error on unlocking app: $e");
       return false;

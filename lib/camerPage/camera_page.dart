@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
@@ -65,7 +67,7 @@ class _CameraPageState extends State<CameraPage> {
       cameras[1],
       ResolutionPreset.medium,
       enableAudio: false,
-      fps: 10,
+      
     );
 
     controller.initialize().then((_) {
@@ -149,6 +151,9 @@ class _CameraPageState extends State<CameraPage> {
             topFrames = 0;
             pushUpCount++;
             debugPrint("✅ PUSH-UP COUNTED: $pushUpCount");
+            setState(() {
+              
+            });
           }
         } else {
           topFrames = 0;
@@ -210,59 +215,112 @@ class _CameraPageState extends State<CameraPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          CameraPreview(controller, ),
-          
-          // Calibration indicator
-          if (mode == DetectorMode.calibrating)
-            Positioned(
-              bottom: 100,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES\nHold plank position',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-              ),
-            ),
+          // ───── Camera Preview ─────
+          Positioned.fill(
+            child: CameraPreview(controller),
+          ),
 
-          // Push-up counter
-          Positioned(
-            top: 50,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                decoration: BoxDecoration(
-                  color: mode == DetectorMode.active 
-                    ? Colors.black.withOpacity(0.7) 
-                    : Colors.grey.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  mode == DetectorMode.active 
-                    ? 'Push-ups: $pushUpCount' 
-                    : 'Calibrating...',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+          // ───── Dark gradient overlay (cinematic feel) ─────
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black54,
+                    Colors.transparent,
+                    Colors.black54,
+                  ],
                 ),
               ),
             ),
           ),
+
+          // ───── Top HUD ─────
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Counter
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.55),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.15),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              const Text(
+                                "PUSH-UPS",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                mode == DetectorMode.active
+                                    ? "$pushUpCount"
+                                    : "--",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Calibration status
+                  if (mode == DetectorMode.calibrating)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        "Getting ready… ${elbowAngles.length}/$CALIBRATION_FRAMES\nHold your push-up position",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          
         ],
       ),
     );

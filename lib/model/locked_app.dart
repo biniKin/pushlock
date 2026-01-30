@@ -27,7 +27,7 @@ class LockedApp {
   // Parse list of JSON maps to list of LockedApp objects
   static List<LockedApp> fromJsonList(List<dynamic> jsonList) {
     return jsonList
-        .map((json) => LockedApp.fromJson(json as Map<String, dynamic>))
+        .map((json) => LockedApp.fromJson(Map<String, dynamic>.from(json)))
         .toList();
   }
 }
