@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_svg/svg.dart';
 
 class SummaryContainer extends StatelessWidget {
   final int lockedAppsNumber;
@@ -10,10 +11,10 @@ class SummaryContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 10, right: 10, top: 16, bottom: 16),
       decoration: BoxDecoration(
         color: Colors.grey.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[800]!),
       ),
       child: Row(
@@ -25,11 +26,11 @@ class SummaryContainer extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.lock_clock, color: const Color.fromARGB(255, 186, 172, 123), size: 19,),
+                  Icon(Icons.lock_clock, color: const Color.fromARGB(255, 186, 172, 123), size: 15,),
                   SizedBox(width: 5,),
                   Text(
                     "Locked Apps",
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],
               ),
@@ -38,17 +39,17 @@ class SummaryContainer extends StatelessWidget {
                 lockedAppsNumber.toString(),
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
           Container(
-            height: 50,
+            height: 20,
             width: 1,
             decoration: BoxDecoration(
-              color: Colors.grey[700]
+              color: Colors.grey[800]
             ),
           ),
           // Total apps
@@ -56,11 +57,11 @@ class SummaryContainer extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.apps, color: Colors.lightGreen, size: 19,),
+                  Icon(Icons.apps, color: Colors.lightGreen, size: 15,),
                   SizedBox(width: 5,),
                   Text(
                     "Total Apps",
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: Colors.white70,fontSize: 11),
                   ),
                 ],
               ),
@@ -69,7 +70,39 @@ class SummaryContainer extends StatelessWidget {
                 totalApps.toString(),
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 22,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+
+          Container(
+            height: 20,
+            width: 1,
+            decoration: BoxDecoration(
+              color: Colors.grey[800]
+            ),
+          ),
+
+          Column(
+            children: [
+              Row(
+                children: [
+                  SvgPicture.asset("assets/icons/push-man.svg", height: 7, width: 5,color: const Color.fromARGB(255, 142, 157, 191),),
+                  SizedBox(width: 5,),
+                  Text(
+                    "Total pushups",
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+              SizedBox(height: 6),
+              Text(
+                "15",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),

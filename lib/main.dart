@@ -22,6 +22,11 @@ late List<CameraDescription> cameras;
 void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+
   runApp(const OverlayApp());
 }
 
@@ -75,6 +80,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   //installedAppsRepo.cache.clearCachedApps();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
 
   cameras = await availableCameras();
   runApp(

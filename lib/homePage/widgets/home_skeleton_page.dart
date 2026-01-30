@@ -7,38 +7,69 @@ class HomeSkeletonPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade800,
-      highlightColor: Colors.grey.shade700,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Chart skeleton
-          _box(height: 200),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+                      Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: const Text(
+                  "PushLock",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+              // Subtitle
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: const Text(
+                  "Track and control your app usage",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
 
-          const SizedBox(height: 20),
-
-          // Summary skeleton
-          _box(height: 120),
-
-          const SizedBox(height: 20),
-
-          // Title skeleton
-          _line(width: 160, height: 18),
-
-          const SizedBox(height: 12),
-
-          // List skeleton
-          ListView.builder(
-            itemCount: 5,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemBuilder: (_, __) => const AppsSkeletonContainer(),
+        Expanded(
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey.shade800,
+            highlightColor: Colors.grey.shade700,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Chart skeleton
+                _box(height: 200),
+          
+                const SizedBox(height: 20),
+          
+                // Summary skeleton
+                _box(height: 120),
+          
+                const SizedBox(height: 20),
+          
+                // Title skeleton
+                _line(width: 160, height: 18),
+          
+                const SizedBox(height: 12),
+          
+                // List skeleton
+                ListView.builder(
+                  itemCount: 5,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (_, __) => const AppsSkeletonContainer(),
+                ),
+          
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
-
-          const SizedBox(height: 100),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

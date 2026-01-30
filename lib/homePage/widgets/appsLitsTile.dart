@@ -20,7 +20,7 @@ class Appslitstile extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.grey.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey[800]!),
         ),
         child: Row(
@@ -51,14 +51,14 @@ class Appslitstile extends StatelessWidget {
                       //Icon(Icons.timelapse, size: 16,),
                       Text(
                         TimeFormatter.formatSeconds(usageTime),
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: Colors.white60),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            isLocked ? SvgPicture.asset("assets/icons/locked-icon.svg", height: 20,) : SvgPicture.asset("assets/icons/unlocked-icon.svg", height: 25,)
+            isLocked ? Icon(Icons.lock, color: Colors.white,) : Icon(Icons.lock_open, color: Colors.grey[600],)
             
           ],
         ),

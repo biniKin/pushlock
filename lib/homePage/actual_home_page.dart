@@ -42,96 +42,111 @@ class _ActualHomePageState extends State<ActualHomePage> {
             print(element.dailyUsageSeconds);
           },);
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // App name
-              const Text(
-                "PushLock",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-              const SizedBox(height: 4),
-              // Subtitle
-              const Text(
-                "Track and control your app usage",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              // Stats + chart container
-              ChartContainer(topApps: state.chartApps,),
-              const SizedBox(height: 20),
-              // Summary container
-              SummaryContainer(lockedAppsNumber: state.lockedAppsCount, totalApps: state.totalAppsCount),
-              const SizedBox(height: 20),
-              // Most used apps list
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Most Used Apps",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: const Text(
+                  "PushLock",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.none,
                   ),
-                  // Text(
-                  //   "see more", 
-                  //   style: TextStyle(
-                  //     color: Colors.deepPurpleAccent
-                  //   ),
-                  // )
-                ],
+                ),
               ),
-              const SizedBox(height: 12),
-              // Non-scrollable list
-              ListView.builder(
-                itemCount: 5,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final app = apps[index];
-                  
-                  
-                  return  Appslitstile(
-                    name: app.appName, 
-                    isLocked: app.isLocked, 
-                    onTap: ()async{
-                      final pushUpCount = await PushupSessionCache().getPushupCount(app.packageName);
-                      print("pushup count for ${app.appName}: $pushUpCount");
-                      app.isLocked ? 
-                      await unlockAppDialog(
-                        context: context, 
-                        appName: app.appName, 
-                        packageName: app.packageName, 
-                        appIcon: app.icon!, 
-                        timeoutMinutes: app.timeoutSeconds!, 
-                        pushups: pushUpCount
-                        ) :
-
-                        await appDialog(
-                          context: context,
-                          appIcon: app.icon ,
-                          isLocked: false, 
-                          appName: app.appName, 
-                          packageName: app.packageName, 
+              // Subtitle
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: const Text(
+                  "Track and control your app usage",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              SizedBox(height: 4,),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 5, bottom: 16),
+                  children: [
+                    // App name
+                    
+                    const SizedBox(height: 15),
+                    
+                    // Stats + chart container
+                    ChartContainer(topApps: state.chartApps,),
+                    const SizedBox(height: 20),
+                    // Summary container
+                    SummaryContainer(lockedAppsNumber: state.lockedAppsCount, totalApps: state.totalAppsCount),
+                    const SizedBox(height: 20),
+                    // Most used apps list
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Most Used Apps",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        // Text(
+                        //   "see more", 
+                        //   style: TextStyle(
+                        //     color: Colors.deepPurpleAccent
+                        //   ),
+                        // )
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Non-scrollable list
+                    ListView.builder(
+                      itemCount: 5,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        final app = apps[index];
+                        
+                        
+                        return  Appslitstile(
+                          name: app.appName, 
+                          isLocked: app.isLocked, 
+                          onTap: ()async{
+                            final pushUpCount = await PushupSessionCache().getPushupCount(app.packageName);
+                            print("pushup count for ${app.appName}: $pushUpCount");
+                            app.isLocked ? 
+                            await unlockAppDialog(
+                              context: context, 
+                              appName: app.appName, 
+                              packageName: app.packageName, 
+                              appIcon: app.icon!, 
+                              timeoutMinutes: app.timeoutSeconds!, 
+                              pushups: pushUpCount
+                              ) :
+                
+                              await appDialog(
+                                context: context,
+                                appIcon: app.icon ,
+                                isLocked: false, 
+                                appName: app.appName, 
+                                packageName: app.packageName, 
+                              );
+                          }, 
+                          usageTime: app.dailyUsageSeconds,
+                          appImage: app.icon  != null ? Image.memory(app.icon!) : Icon(Icons.apps),
                         );
-                    }, 
-                    usageTime: app.dailyUsageSeconds,
-                    appImage: app.icon  != null ? Image.memory(app.icon!) : Icon(Icons.apps),
-                  );
-                },
+                      },
+                    ),
+                    SizedBox(height: 100,),
+                  ],
+                ),
               ),
-              SizedBox(height: 100,),
             ],
           );
         } else{

@@ -1,15 +1,18 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pushlock/appsPage/bloc/apps_event.dart';
 import 'package:pushlock/appsPage/bloc/apps_state.dart';
+import 'package:pushlock/model/appUiModel.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
 
 class AppsBloc extends Bloc<AppsEvent, AppsState> {
   final InstalledAppsRepository appsRepository;
 
+
   AppsBloc(this.appsRepository) : super(AppsInitial()) {
     on<LoadApps>(_onLoadApps);
     on<RefreshApps>(_onRefreshApps);
   }
+  
 
   Future<void> _onLoadApps(
     LoadApps event,
@@ -18,26 +21,37 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
     emit(AppsLoading());
 
     try {
-      final cachedApps = await appsRepository.getCachedApps();
+      List<Appuimodel> uiApps;
 
-      if (cachedApps.isNotEmpty) {
+      // Check if this is a refresh event
+      if (event is RefreshApps) {
+        // Force full scan and cache
+        uiApps = await appsRepository.scanAndCacheApps();
+      } else {
+        // Hybrid approach: Try to load from cache first
+        final cachedApps = await appsRepository.getCachedApps();
+
+        if (cachedApps.isEmpty) {
+          // No cache, do full scan
+          uiApps = await appsRepository.scanAndCacheApps();
+        } else {
+          // Use cached app list but refresh stats
+          uiApps = await appsRepository.refreshStatsForCachedApps(
+            cachedApps,
+          );
+        }
+      }
+
+
         emit(
           AppsLoaded(
-            apps: cachedApps,
+            apps: uiApps,
             fromCache: true,
           ),
         );
-      } else {
-        final scannedApps =
-            await appsRepository.scanAndCacheApps();
-
-        emit(
-          AppsLoaded(
-            apps: scannedApps,
-            fromCache: false,
-          ),
-        );
-      }
+   
+       
+      
     } catch (e) {
       emit(AppsError(e.toString()));
     }

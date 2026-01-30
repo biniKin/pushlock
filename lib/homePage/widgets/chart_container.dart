@@ -28,7 +28,7 @@ class _ChartContainerState extends State<ChartContainer> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.grey.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey[800]!),
         ),
         child: const Center(
@@ -46,7 +46,7 @@ class _ChartContainerState extends State<ChartContainer> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[800]!),
       ),
       child: Row(

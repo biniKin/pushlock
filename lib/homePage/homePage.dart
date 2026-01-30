@@ -89,8 +89,8 @@ class _FloatingBottomNav extends StatelessWidget {
       height: 70,
       decoration: BoxDecoration(
         color: const Color.fromARGB(255, 49, 49, 49),
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: Colors.grey[600]!),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[700]!),
         boxShadow: [
           BoxShadow(
             color: Colors.grey[900]!,
@@ -114,7 +114,7 @@ class _FloatingBottomNav extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_filled),
             label: "Home",
           ),
           BottomNavigationBarItem(
