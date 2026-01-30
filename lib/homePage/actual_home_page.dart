@@ -8,6 +8,7 @@ import 'package:pushlock/homePage/bloc/homePage_state.dart';
 import 'package:pushlock/homePage/widgets/app_dialog.dart';
 import 'package:pushlock/homePage/widgets/appsLitsTile.dart';
 import 'package:pushlock/homePage/widgets/chart_container.dart';
+import 'package:pushlock/homePage/widgets/home_skeleton_page.dart';
 import 'package:pushlock/homePage/widgets/summary_container.dart';
 import 'package:pushlock/homePage/widgets/unlock_app_dialog.dart';
 
@@ -33,9 +34,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
     return BlocBuilder<HomepageBloc, HomepageState>(
       builder: (context, state) {
         if(state is HomepageLoading){
-          return Center(
-            child: CircularProgressIndicator(),
-          );
+          return HomeSkeletonPage();
         } else if(state is HomepageLoaded){
           final apps = state.mostUsedApps;
           final statapps = state.chartApps;
@@ -56,14 +55,6 @@ class _ActualHomePageState extends State<ActualHomePage> {
                   decoration: TextDecoration.none,
                 ),
               ),
-              // RichText(text: TextSpan(
-              //   children: [
-              //     TextSpan(text: "Push", style: TextStyle(fontSize: 26, color: Colors.white, fontWeight: FontWeight.bold,
-              //     decoration: TextDecoration.none,)),
-              //     TextSpan(text: "Lock", style: TextStyle(color: Colors.blueGrey, fontSize: 26, fontWeight: FontWeight.bold,
-              //     decoration: TextDecoration.none,))
-              //   ]
-              // )),
               const SizedBox(height: 4),
               // Subtitle
               const Text(
@@ -74,6 +65,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
                 ),
               ),
               const SizedBox(height: 20),
+              
               // Stats + chart container
               ChartContainer(topApps: state.chartApps,),
               const SizedBox(height: 20),
@@ -143,7 +135,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
             ],
           );
         } else{
-          return CircularProgressIndicator();
+          return HomeSkeletonPage();
         }
 
         

@@ -11,14 +11,63 @@ class Pushupdetection {
   static const double CRITICAL_CONFIDENCE = 0.8;
   static const double NORMAL_CONFIDENCE = 0.7;
 
-  
+  // Get average shoulder Y position (normalized to frame height)
+  double? getShoulderY(Pose pose, double frameHeight) {
+    final leftShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
+    final rightShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
+
+    if (leftShoulder == null || rightShoulder == null) return null;
+
+    if (!isLandmarkReliable(leftShoulder, min: NORMAL_CONFIDENCE) ||
+        !isLandmarkReliable(rightShoulder, min: NORMAL_CONFIDENCE)) {
+      return null;
+    }
+
+    // Average Y position, normalized to frame height (0.0 to 1.0)
+    final avgY = (leftShoulder.y + rightShoulder.y) / 2;
+    return avgY / frameHeight;
+  }
+
+  // Get body size reference (shoulder to hip distance)
+  double? getBodySizeReference(Pose pose) {
+    final shoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
+    final hip = pose.landmarks[PoseLandmarkType.rightHip];
+
+    if (shoulder == null || hip == null) return null;
+
+    if (!isLandmarkReliable(shoulder, min: NORMAL_CONFIDENCE) ||
+        !isLandmarkReliable(hip, min: NORMAL_CONFIDENCE)) {
+      return null;
+    }
+
+    final dx = hip.x - shoulder.x;
+    final dy = hip.y - shoulder.y;
+    return math.sqrt(dx * dx + dy * dy);
+  }
+
+  // Get hip Y position as fallback
+  double? getHipY(Pose pose, double frameHeight) {
+    final leftHip = pose.landmarks[PoseLandmarkType.leftHip];
+    final rightHip = pose.landmarks[PoseLandmarkType.rightHip];
+
+    if (leftHip == null || rightHip == null) return null;
+
+    if (!isLandmarkReliable(leftHip, min: NORMAL_CONFIDENCE) ||
+        !isLandmarkReliable(rightHip, min: NORMAL_CONFIDENCE)) {
+      return null;
+    }
+
+    final avgY = (leftHip.y + rightHip.y) / 2;
+    return avgY / frameHeight;
+  }
+
   double angle(
-    PoseLandmark firstLandmark, 
+    PoseLandmark firstLandmark,
     PoseLandmark midLandmark,
     PoseLandmark lastLandmark,
-    ) {
-    double radians = atan2(
-            lastLandmark.y - midLandmark.y, lastLandmark.x - midLandmark.x) -
+  ) {
+    double radians =
+        atan2(lastLandmark.y - midLandmark.y, lastLandmark.x - midLandmark.x) -
         atan2(firstLandmark.y - midLandmark.y, firstLandmark.x - midLandmark.x);
     double degrees = radians * 180.0 / math.pi;
     degrees = degrees.abs(); // Angle should never be negative
@@ -43,59 +92,44 @@ class Pushupdetection {
     return degrees;
   }
 
-  bool isBodyHorizontal(Pose pose) {
-    final shoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
-    final hip = pose.landmarks[PoseLandmarkType.rightHip];
-
-    if (shoulder == null || hip == null) return false;
-
-    final dx = hip.x - shoulder.x;
-    final dy = hip.y - shoulder.y;
-
-    final angle = (atan2(dy, dx) * 180 / pi).abs();
-
-    // Near horizontal (~0° or ~180°)
-    return angle < 20 || angle > 160;
-  }
-
-  bool wristsUnderShoulders(Pose pose) {
-    final shoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
-    final wrist = pose.landmarks[PoseLandmarkType.rightWrist];
-
-    if (shoulder == null || wrist == null) return false;
-
-    return (shoulder.x - wrist.x).abs() < 40;
-  }
-
   bool isLandmarkReliable(PoseLandmark lm, {double min = 0.7}) {
     return lm.likelihood >= min;
   }
 
-
-
   bool hasReliableArm(Pose pose, bool isRight) {
-    final shoulder = pose.landmarks[
-        isRight ? PoseLandmarkType.rightShoulder : PoseLandmarkType.leftShoulder];
-    final elbow = pose.landmarks[
-        isRight ? PoseLandmarkType.rightElbow : PoseLandmarkType.leftElbow];
-    final wrist = pose.landmarks[
-        isRight ? PoseLandmarkType.rightWrist : PoseLandmarkType.leftWrist];
+    final shoulder =
+        pose.landmarks[isRight
+            ? PoseLandmarkType.rightShoulder
+            : PoseLandmarkType.leftShoulder];
+    final elbow =
+        pose.landmarks[isRight
+            ? PoseLandmarkType.rightElbow
+            : PoseLandmarkType.leftElbow];
+    final wrist =
+        pose.landmarks[isRight
+            ? PoseLandmarkType.rightWrist
+            : PoseLandmarkType.leftWrist];
 
     if (shoulder == null || elbow == null || wrist == null) return false;
 
     return isLandmarkReliable(shoulder, min: NORMAL_CONFIDENCE) &&
-          isLandmarkReliable(elbow, min: CRITICAL_CONFIDENCE) &&
-          isLandmarkReliable(wrist, min: NORMAL_CONFIDENCE);
+        isLandmarkReliable(elbow, min: CRITICAL_CONFIDENCE) &&
+        isLandmarkReliable(wrist, min: NORMAL_CONFIDENCE);
   }
 
-
   double? getElbowAngle(Pose pose, bool isRight) {
-    final shoulder = pose.landmarks[
-        isRight ? PoseLandmarkType.rightShoulder : PoseLandmarkType.leftShoulder];
-    final elbow = pose.landmarks[
-        isRight ? PoseLandmarkType.rightElbow : PoseLandmarkType.leftElbow];
-    final wrist = pose.landmarks[
-        isRight ? PoseLandmarkType.rightWrist : PoseLandmarkType.leftWrist];
+    final shoulder =
+        pose.landmarks[isRight
+            ? PoseLandmarkType.rightShoulder
+            : PoseLandmarkType.leftShoulder];
+    final elbow =
+        pose.landmarks[isRight
+            ? PoseLandmarkType.rightElbow
+            : PoseLandmarkType.leftElbow];
+    final wrist =
+        pose.landmarks[isRight
+            ? PoseLandmarkType.rightWrist
+            : PoseLandmarkType.leftWrist];
 
     if (shoulder == null || elbow == null || wrist == null) return null;
 
@@ -103,8 +137,6 @@ class Pushupdetection {
 
     return calculateJointAngle(shoulder, elbow, wrist);
   }
-
-
 
   double? getCombinedElbowAngle(Pose pose) {
     final rightAngle = getElbowAngle(pose, true);
@@ -118,11 +150,9 @@ class Pushupdetection {
     return rightAngle ?? leftAngle; // fallback
   }
 
-
   bool bothArmsVisible(Pose pose) {
     return hasReliableArm(pose, true) && hasReliableArm(pose, false);
   }
-
 
   double calculateTorsoAngle(Pose pose) {
     final shoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
@@ -135,8 +165,6 @@ class Pushupdetection {
 
     return (atan2(dy, dx) * 180 / pi).abs();
   }
-
-
 
   InputImage inputImageFromCameraImage(
     CameraImage image,
@@ -187,19 +215,22 @@ class Pushupdetection {
     );
   }
 
-
   InputImageRotation getImageRotation(controller) {
-    final camera = cameras[controller.description.lensDirection == CameraLensDirection.front ? 1 : 0];
-    
+    final camera =
+        cameras[controller.description.lensDirection ==
+                CameraLensDirection.front
+            ? 1
+            : 0];
+
     switch (camera.sensorOrientation) {
-        case 90:
-          return InputImageRotation.rotation90deg;
-        case 180:
-          return InputImageRotation.rotation180deg;
-        case 270:
-          return InputImageRotation.rotation270deg;
-        default:
-          return InputImageRotation.rotation0deg;
-      }
+      case 90:
+        return InputImageRotation.rotation90deg;
+      case 180:
+        return InputImageRotation.rotation180deg;
+      case 270:
+        return InputImageRotation.rotation270deg;
+      default:
+        return InputImageRotation.rotation0deg;
+    }
   }
 }

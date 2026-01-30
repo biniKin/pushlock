@@ -21,8 +21,8 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
-  static const int CONFIRM_FRAMES = 2;
-  static const int CALIBRATION_FRAMES = 10;
+  static const int confirmFrames = 3;
+  static const int calibrationFrames = 15;
   static const platform = MethodChannel('overlay_channel');
 
   late int pushupcountforapp;
@@ -30,37 +30,57 @@ class _CameraPageState extends State<CameraPage> {
 
   late CameraController controller;
   late PoseDetector poseDetector;
-  final options = PoseDetectorOptions();
   bool _isProcessing = false;
   int pushUpCount = 0;
-  PushUpState phase = PushUpState.top;
-  List<double> elbowAngles = [];
-  List<double> torsoAngles = [];
 
-  // Add these declarations after your existing variables
-  double? calibratedTopAngle;
-  double? calibratedTorsoAngle;
-  double? topThreshold;
-  double? bottomThreshold;
+  // Hybrid detection variables
+  PushUpState phase = PushUpState.up;
 
-  // Reference position for pushup detection
-  int downFrames = 0;
-  int bottomFrames = 0;
-  int goingUpFrames = 0;
-  int topFrames = 0;
+  // Position tracking (normalized 0.0-1.0)
+  List<double> shoulderYHistory = [];
+  double? baselineShoulderY; // Reference position when in UP state
+  double? lowestShoulderY; // Lowest point reached
+
+  // Angle tracking
+  List<double> elbowAngleHistory = [];
+  double? baselineElbowAngle; // Elbow angle when in UP state
+
+  // Body size reference for normalization
+  double? bodySizeReference;
+
+  // Frame counters
+  int downConfirmFrames = 0;
+  int upConfirmFrames = 0;
+
+  // Calibration
+  DetectorMode mode = DetectorMode.calibrating;
+  List<double> calibrationShoulderY = [];
+  List<double> calibrationElbowAngles = [];
+
+  // Thresholds (will be set during calibration)
+  double positionThreshold = 0.08; // 8% of frame height
+  double angleThreshold = 30.0; // 30 degrees
 
   Pushupdetection pushupdetection = Pushupdetection();
+  double frameHeight = 1.0;
 
   double _average(List<double> values) {
     if (values.isEmpty) return 0.0;
     return values.reduce((a, b) => a + b) / values.length;
   }
 
+  double _movingAverage(List<double> history, double newValue, int maxSize) {
+    history.add(newValue);
+    if (history.length > maxSize) {
+      history.removeAt(0);
+    }
+    return _average(history);
+  }
+
   @override
   void initState() {
     super.initState();
     _initial();
-    // cal push ups
     _getPushupCount();
   }
 
@@ -68,7 +88,7 @@ class _CameraPageState extends State<CameraPage> {
     pushupcountforapp = await pushupSessionCache.getPushupCount(
       widget.packageName,
     );
-    print("number of push ups of this app is: $pushupcountforapp");
+    debugPrint("Required push-ups: $pushupcountforapp");
   }
 
   void _initial() async {
@@ -78,36 +98,36 @@ class _CameraPageState extends State<CameraPage> {
       cameras[1],
       ResolutionPreset.medium,
       enableAudio: false,
-      fps: 10
     );
 
-    controller.initialize().then((_) {
-      if (!mounted) return;
+    await controller.initialize();
+    if (!mounted) return;
 
-      controller.startImageStream((img) async {
-        if (_isProcessing) return;
-        _isProcessing = true;
+    // Get frame dimensions
+    frameHeight = controller.value.previewSize?.height ?? 1.0;
 
-        final inputImage = pushupdetection.inputImageFromCameraImage(
-          img,
-          pushupdetection.getImageRotation(controller),
-        );
-        final poses = await poseDetector.processImage(inputImage);
+    controller.startImageStream((img) async {
+      if (_isProcessing) return;
+      _isProcessing = true;
 
-        if (poses.isNotEmpty) {
-          if (mode == DetectorMode.calibrating) {
-            handleCalibration(poses.first);
-            _isProcessing = false;
-            return;
-          }
-          detectPushUp(poses.first);
+      final inputImage = pushupdetection.inputImageFromCameraImage(
+        img,
+        pushupdetection.getImageRotation(controller),
+      );
+      final poses = await poseDetector.processImage(inputImage);
+
+      if (poses.isNotEmpty) {
+        if (mode == DetectorMode.calibrating) {
+          handleCalibration(poses.first);
+        } else {
+          detectPushUpHybrid(poses.first);
         }
+      }
 
-        _isProcessing = false;
-      });
-
-      setState(() {});
+      _isProcessing = false;
     });
+
+    setState(() {});
   }
 
   Future<void> _unlockApp() async {
@@ -116,150 +136,188 @@ class _CameraPageState extends State<CameraPage> {
         'packageName': widget.packageName,
       });
     } catch (e) {
-      print('Error unlocking app: $e');
+      debugPrint('Error unlocking app: $e');
     }
   }
 
   Future<void> _handleUnlock() async {
-    // Stop camera
     await controller.stopImageStream();
 
-    // Show success dialog
     if (!mounted) return;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('🎉 Great Job!'),
+        title: const Text('🎉 Great Job!'),
         content: Text(
           'You completed $pushUpCount push-ups!\n\n${widget.appName} is now unlocked.',
         ),
         actions: [
           TextButton(
             onPressed: () async {
-              // Unlock the app
               await _unlockApp();
-
-              // Close dialog
               if (mounted) Navigator.of(context).pop();
-
-              // Close camera page
               if (mounted) Navigator.of(context).pop();
             },
-            child: Text('Continue'),
+            child: const Text('Continue'),
           ),
         ],
       ),
     );
   }
 
-  void detectPushUp(Pose pose) {
+  void handleCalibration(Pose pose) {
+    // Check if both arms are visible
     if (!pushupdetection.bothArmsVisible(pose)) return;
 
-    final angle = pushupdetection.getCombinedElbowAngle(pose);
-    if (angle == null || calibratedTopAngle == null) return;
-    print(angle);
+    // Get shoulder position
+    final shoulderY = pushupdetection.getShoulderY(pose, frameHeight);
+    if (shoulderY == null) return;
+
+    // Get elbow angle
+    final elbowAngle = pushupdetection.getCombinedElbowAngle(pose);
+    if (elbowAngle == null) return;
+
+    // Get body size reference
+    final bodySize = pushupdetection.getBodySizeReference(pose);
+    if (bodySize == null) return;
+
+    calibrationShoulderY.add(shoulderY);
+    calibrationElbowAngles.add(elbowAngle);
+
+    debugPrint(
+      "📏 Calibrating... ${calibrationShoulderY.length}/$calibrationFrames",
+    );
+
+    if (calibrationShoulderY.length >= calibrationFrames) {
+      // Set baseline values (user should be in UP position)
+      baselineShoulderY = _average(calibrationShoulderY);
+      baselineElbowAngle = _average(calibrationElbowAngles);
+      bodySizeReference = bodySize;
+
+      // Calculate adaptive thresholds based on body size
+      // Larger body = larger displacement expected
+      positionThreshold = 0.08; // 8% of frame height
+      angleThreshold = 30.0; // 30 degrees minimum bend
+
+      mode = DetectorMode.active;
+      phase = PushUpState.up;
+
+      debugPrint("✅ Calibration complete");
+      debugPrint("Baseline shoulder Y: $baselineShoulderY");
+      debugPrint("Baseline elbow angle: $baselineElbowAngle");
+      debugPrint("Position threshold: $positionThreshold");
+      debugPrint("Angle threshold: $angleThreshold");
+
+      calibrationShoulderY.clear();
+      calibrationElbowAngles.clear();
+    }
+  }
+
+  void detectPushUpHybrid(Pose pose) {
+    // Check if both arms are visible
+    if (!pushupdetection.bothArmsVisible(pose)) {
+      debugPrint("⚠️ Arms not visible");
+      return;
+    }
+
+    // Get current shoulder position (normalized)
+    final currentShoulderY = pushupdetection.getShoulderY(pose, frameHeight);
+    if (currentShoulderY == null) {
+      debugPrint("⚠️ Shoulder position unavailable");
+      return;
+    }
+
+    // Get current elbow angle
+    final currentElbowAngle = pushupdetection.getCombinedElbowAngle(pose);
+    if (currentElbowAngle == null) {
+      debugPrint("⚠️ Elbow angle unavailable");
+      return;
+    }
+
+    // Apply moving average for smoothing
+    final smoothedShoulderY = _movingAverage(
+      shoulderYHistory,
+      currentShoulderY,
+      5,
+    );
+    final smoothedElbowAngle = _movingAverage(
+      elbowAngleHistory,
+      currentElbowAngle,
+      5,
+    );
+
+    // Calculate displacements
+    final positionDisplacement =
+        smoothedShoulderY - (baselineShoulderY ?? smoothedShoulderY);
+    final angleChange =
+        (baselineElbowAngle ?? smoothedElbowAngle) - smoothedElbowAngle;
+
+    debugPrint(
+      "Position: $smoothedShoulderY, Displacement: ${positionDisplacement.toStringAsFixed(3)}, Angle: ${smoothedElbowAngle.toStringAsFixed(1)}°, Change: ${angleChange.toStringAsFixed(1)}°",
+    );
 
     switch (phase) {
-      case PushUpState.top:
-        if (angle < topThreshold!) {
-          // Use calibrated threshold
-          downFrames++;
-          if (downFrames >= CONFIRM_FRAMES) {
+      case PushUpState.up:
+        // Detect going DOWN
+        // Position: Shoulder moved down (Y increased)
+        // Angle: Elbow bent (angle decreased)
+        if (positionDisplacement > positionThreshold &&
+            angleChange > angleThreshold) {
+          downConfirmFrames++;
+          if (downConfirmFrames >= confirmFrames) {
             phase = PushUpState.down;
-            downFrames = 0;
-            debugPrint("⬇️ Confirmed going DOWN");
+            lowestShoulderY = smoothedShoulderY;
+            downConfirmFrames = 0;
+            debugPrint(
+              "⬇️ Confirmed DOWN - Position: ${positionDisplacement.toStringAsFixed(3)}, Angle: ${angleChange.toStringAsFixed(1)}°",
+            );
           }
         } else {
-          downFrames = 0;
+          downConfirmFrames = 0;
         }
         break;
 
       case PushUpState.down:
-        if (angle < bottomThreshold!) {
-          // Use calibrated threshold
-          bottomFrames++;
-          if (bottomFrames >= CONFIRM_FRAMES) {
-            phase = PushUpState.bottom;
-            bottomFrames = 0;
-            debugPrint("🔽 Confirmed BOTTOM");
-          }
-        } else {
-          bottomFrames = 0;
+        // Track lowest point
+        if (smoothedShoulderY > (lowestShoulderY ?? 0)) {
+          lowestShoulderY = smoothedShoulderY;
         }
-        break;
 
-      case PushUpState.bottom:
-        if (angle > bottomThreshold! + 30) {
-          // Small buffer above bottom
-          goingUpFrames++;
-          if (goingUpFrames >= CONFIRM_FRAMES) {
+        // Detect going UP
+        // Position: Shoulder moved up from lowest point (Y decreased)
+        // Angle: Elbow extended (angle increased back toward baseline)
+        final upDisplacement =
+            (lowestShoulderY ?? smoothedShoulderY) - smoothedShoulderY;
+        final angleRecovery =
+            smoothedElbowAngle - (baselineElbowAngle! - angleThreshold);
+
+        if (upDisplacement > positionThreshold * 0.7 &&
+            angleRecovery > angleThreshold * 0.5) {
+          upConfirmFrames++;
+          if (upConfirmFrames >= confirmFrames) {
+            // PUSHUP COUNTED!
             phase = PushUpState.up;
-            goingUpFrames = 0;
-            debugPrint("⬆️ Confirmed going UP");
-          }
-        } else {
-          goingUpFrames = 0;
-        }
-        break;
-
-      case PushUpState.up:
-        if (angle > topThreshold! - 20) {
-          // Small buffer below top
-          topFrames++;
-          if (topFrames >= CONFIRM_FRAMES) {
-            phase = PushUpState.top;
-            topFrames = 0;
             pushUpCount++;
+            upConfirmFrames = 0;
 
-            debugPrint("✅ PUSH-UP COUNTED: $pushUpCount");
+            // Reset baseline to current position (adaptive)
+            baselineShoulderY = smoothedShoulderY;
+            baselineElbowAngle = smoothedElbowAngle;
+
+            debugPrint("✅ PUSH-UP #$pushUpCount COUNTED!");
             setState(() {});
 
-            // Check if pushup count matches required count
+            // Check if goal reached
             if (pushUpCount >= pushupcountforapp) {
               _handleUnlock();
             }
           }
         } else {
-          topFrames = 0;
+          upConfirmFrames = 0;
         }
         break;
-    }
-  }
-
-  DetectorMode mode = DetectorMode.calibrating;
-
-  void handleCalibration(Pose pose) {
-    if (!pushupdetection.bothArmsVisible(pose)) return;
-    // if (!pushupdetection.isBodyHorizontal(pose)) return;
-
-    final elbowAngle = pushupdetection.getCombinedElbowAngle(pose);
-    if (elbowAngle == null) return;
-
-    final torsoAngle = pushupdetection.calculateTorsoAngle(pose);
-
-    elbowAngles.add(elbowAngle);
-    torsoAngles.add(torsoAngle);
-
-    debugPrint("📏 Calibrating... ${elbowAngles.length}/$CALIBRATION_FRAMES");
-
-    if (elbowAngles.length >= CALIBRATION_FRAMES) {
-      calibratedTopAngle = _average(elbowAngles);
-      calibratedTorsoAngle = _average(torsoAngles);
-
-      // Dynamic thresholds
-      topThreshold = calibratedTopAngle! - 15;
-      bottomThreshold = calibratedTopAngle! - 60;
-
-      mode = DetectorMode.active;
-
-      debugPrint("✅ Calibration complete");
-      debugPrint("Top angle: $calibratedTopAngle");
-      debugPrint("Bottom threshold: $bottomThreshold");
-
-      elbowAngles.clear();
-      torsoAngles.clear();
     }
   }
 
@@ -277,10 +335,10 @@ class _CameraPageState extends State<CameraPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ───── Camera Preview ─────
+          // Camera Preview
           Positioned.fill(child: CameraPreview(controller)),
 
-          // ───── Dark gradient overlay (cinematic feel) ─────
+          // Dark gradient overlay
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -293,7 +351,7 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
 
-          // ───── Top HUD ─────
+          // Top HUD
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -312,10 +370,10 @@ class _CameraPageState extends State<CameraPage> {
                             vertical: 14,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.55),
+                            color: Colors.black.withValues(alpha: 0.55),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                             ),
                           ),
                           child: Column(
@@ -331,7 +389,7 @@ class _CameraPageState extends State<CameraPage> {
                               const SizedBox(height: 4),
                               Text(
                                 mode == DetectorMode.active
-                                    ? "$pushUpCount"
+                                    ? "$pushUpCount / $pushupcountforapp"
                                     : "--",
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -356,16 +414,39 @@ class _CameraPageState extends State<CameraPage> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.85),
+                        color: Colors.blue.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        "Getting ready… ${elbowAngles.length}/$CALIBRATION_FRAMES\nHold your push-up position",
+                        "Getting ready… ${calibrationShoulderY.length}/$calibrationFrames\nHold arms extended (top position)",
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+
+                  // State indicator
+                  if (mode == DetectorMode.active)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: phase == PushUpState.up
+                            ? Colors.green.withValues(alpha: 0.7)
+                            : Colors.orange.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        phase == PushUpState.up ? "UP ⬆️" : "DOWN ⬇️",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
