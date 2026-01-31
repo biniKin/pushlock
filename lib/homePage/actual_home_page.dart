@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lottie/lottie.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/bloc/homePage_event.dart';
@@ -48,14 +49,20 @@ class _ActualHomePageState extends State<ActualHomePage> {
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: const Text(
-                  "PushLock",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    decoration: TextDecoration.none,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "PushLock",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    Lottie.asset("assets/animations/pushup-white.json", height: 40, width: 40, )
+                  ],
                 ),
               ),
               // Subtitle
@@ -82,7 +89,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
                     ChartContainer(topApps: state.chartApps,),
                     const SizedBox(height: 20),
                     // Summary container
-                    SummaryContainer(lockedAppsNumber: state.lockedAppsCount, totalApps: state.totalAppsCount),
+                    SummaryContainer(lockedAppsNumber: state.lockedAppsCount, totalApps: state.totalAppsCount, totalPushups: state.totalPushups,),
                     const SizedBox(height: 20),
                     // Most used apps list
                     Row(

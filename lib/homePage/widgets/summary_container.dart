@@ -5,8 +5,9 @@ import 'package:flutter_svg/svg.dart';
 class SummaryContainer extends StatelessWidget {
   final int lockedAppsNumber;
   final int totalApps;
+  final int totalPushups;
 
-  const SummaryContainer({super.key, required this.lockedAppsNumber, required this.totalApps});
+  const SummaryContainer({super.key, required this.lockedAppsNumber, required this.totalApps, required this.totalPushups});
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +100,7 @@ class SummaryContainer extends StatelessWidget {
               ),
               SizedBox(height: 6),
               Text(
-                "15",
+                totalPushups.toString(),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,

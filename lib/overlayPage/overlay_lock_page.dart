@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class OverlayLockPage extends StatefulWidget {
   const OverlayLockPage({
@@ -33,13 +34,14 @@ class _OverlayLockPageState extends State<OverlayLockPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black87,
+      backgroundColor: const Color.fromARGB(221, 24, 24, 24),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.lock, size: 80, color: Colors.white),
-            SizedBox(height: 20),
+            Text("PushLock", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+            SizedBox(height: 100),
             Text(
               "Time to do push ups!",
               style: TextStyle(
@@ -50,9 +52,11 @@ class _OverlayLockPageState extends State<OverlayLockPage> {
             ),
             SizedBox(height: 10),
             Text(
-              widget.appName,
+              "You should do push ups to unlock ${widget.appName}.",
               style: TextStyle(color: Colors.white70, fontSize: 18),
             ),
+            SizedBox(height: 30,),
+            SvgPicture.asset("assets/icons/push-man.svg", height: 100, width: 200,),
             SizedBox(height: 40),
             ElevatedButton(
               onPressed: _startPushups,

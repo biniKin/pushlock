@@ -69,6 +69,8 @@ class _OverlayAppState extends State<OverlayApp> {
 }
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
   SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
   final LockedAppsRepository lockedAppsRepo = LockedAppsRepository();
   final AppStatsRepository appStatsRepo = AppStatsRepository();
@@ -81,7 +83,7 @@ void main() async {
   final PushupSessionCache pushupSessionCache = PushupSessionCache();
   final LocalPushupCountService localPushupCountService = LocalPushupCountService(sharedPreferences: sharedPreferences);
 
-  WidgetsFlutterBinding.ensureInitialized();
+  
   await Hive.initFlutter();
   //installedAppsRepo.cache.clearCachedApps();
   await SystemChrome.setPreferredOrientations([
