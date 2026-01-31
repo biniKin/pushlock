@@ -12,6 +12,7 @@ class HomepageLoaded extends HomepageState {
   // Summary
   final int lockedAppsCount;
   final int totalAppsCount;
+  final int totalPushups;
 
   // List of most used apps
   final List<Appuimodel> mostUsedApps;
@@ -21,6 +22,7 @@ class HomepageLoaded extends HomepageState {
     required this.lockedAppsCount,
     required this.totalAppsCount,
     required this.mostUsedApps,
+    required this.totalPushups
   });
 
   HomepageLoaded copyWith({
@@ -28,13 +30,14 @@ class HomepageLoaded extends HomepageState {
     int? lockedAppsCount,
     int? totalAppsCount,
     List<Appuimodel>? mostUsedApps,
-
+    int? totalPushups
   }){
     return HomepageLoaded(
       chartApps: chartApps ?? this.chartApps, 
       lockedAppsCount: lockedAppsCount ?? this.lockedAppsCount, 
       totalAppsCount: totalAppsCount ?? this.totalAppsCount, 
       mostUsedApps: mostUsedApps ?? this.mostUsedApps,
+      totalPushups: totalPushups ?? this.totalPushups
     );
   }
 }

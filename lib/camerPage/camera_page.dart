@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
+import 'package:pushlock/service/local_pushup_count_service.dart';
 import 'package:pushlock/util/calibration_state.dart';
 import 'package:pushlock/main.dart';
 import 'package:pushlock/util/pushUpDetection.dart';
 import 'package:pushlock/util/pushup_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key, required this.packageName, this.appName = ''});
@@ -27,6 +29,8 @@ class _CameraPageState extends State<CameraPage> {
 
   late int pushupcountforapp;
   final PushupSessionCache pushupSessionCache = PushupSessionCache();
+  
+
 
   late CameraController controller;
   late PoseDetector poseDetector;
@@ -141,7 +145,12 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _handleUnlock() async {
+    final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    final LocalPushupCountService localPushupCountService = LocalPushupCountService(sharedPreferences: sharedPreferences);
+
     await controller.stopImageStream();
+    await localPushupCountService.savePushupLocally(pushUpCount);
+
 
     if (!mounted) return;
 

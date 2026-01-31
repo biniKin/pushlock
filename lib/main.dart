@@ -14,6 +14,8 @@ import 'package:pushlock/overlayPage/overlay_lock_page.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
 import 'package:pushlock/repositories/locked_apps_repository.dart';
+import 'package:pushlock/service/local_pushup_count_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 late List<CameraDescription> cameras;
 
@@ -67,6 +69,7 @@ class _OverlayAppState extends State<OverlayApp> {
 }
 
 void main() async {
+  SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
   final LockedAppsRepository lockedAppsRepo = LockedAppsRepository();
   final AppStatsRepository appStatsRepo = AppStatsRepository();
   final InstalledAppsCache cache = InstalledAppsCache();
@@ -76,6 +79,7 @@ void main() async {
     lockedAppsRepo,
   );
   final PushupSessionCache pushupSessionCache = PushupSessionCache();
+  final LocalPushupCountService localPushupCountService = LocalPushupCountService(sharedPreferences: sharedPreferences);
 
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
@@ -94,6 +98,7 @@ void main() async {
             lockedAppsRepo: lockedAppsRepo,
             appStatsRepo: appStatsRepo,
             pushupSessionCache: pushupSessionCache,
+            localPushupCountService: localPushupCountService
           ),
         ),
         BlocProvider<AppsBloc>(create: (_) => AppsBloc(installedAppsRepo)),

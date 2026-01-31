@@ -10,18 +10,21 @@ import 'package:pushlock/model/locked_app.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
 import 'package:pushlock/repositories/locked_apps_repository.dart';
+import 'package:pushlock/service/local_pushup_count_service.dart';
 
 class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
   final InstalledAppsRepository installedAppsRepo;
   final LockedAppsRepository lockedAppsRepo;
   final AppStatsRepository appStatsRepo;
   final PushupSessionCache pushupSessionCache;
+  final LocalPushupCountService localPushupCountService;
 
   HomepageBloc({
     required this.installedAppsRepo,
     required this.lockedAppsRepo,
     required this.appStatsRepo,
     required this.pushupSessionCache,
+    required this.localPushupCountService
   }) : super(HomepageInitial()) {
     on<LoadHomepageData>(_onLoadHomepage);
     on<RefreshHomepageData>(_onLoadHomepage);
@@ -65,12 +68,16 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
       final lockedCount = uiApps.where((app) => app.isLocked).length;
       final totalCount = uiApps.length;
 
+      // get it from shared pref
+      final totalpushups = localPushupCountService.getPushupCountLocally();
+
       emit(
         HomepageLoaded(
           chartApps: chartApps,
           lockedAppsCount: lockedCount,
           totalAppsCount: totalCount,
           mostUsedApps: uiApps,
+          totalPushups: totalpushups
         ),
       );
     } catch (e) {
