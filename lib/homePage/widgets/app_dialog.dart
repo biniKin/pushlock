@@ -1,10 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/bloc/homePage_event.dart';
-import 'package:pushlock/homePage/homePage.dart';
 import 'package:pushlock/homePage/widgets/custom_time_picker.dart';
 import 'package:pushlock/model/locked_app.dart';
 
@@ -114,7 +111,7 @@ Future<void> appDialog({
                     ),
 
                     selectedMinutes != null ? Text(
-                      selectedMinutes.toString() + "min", 
+                      "${selectedMinutes}min", 
                       style: TextStyle(
                         color: Colors.grey[300],
                         fontSize: 13,
@@ -237,11 +234,11 @@ Future<void> appDialog({
                     });
                     return;
                   }
-                  print("time interval: ${selectedMinutes}");
-                  print("no of push-ups: ${pushups}");
-                  print("app Name: ${appName}");
-                  print("package name: ${packageName}");
-                  print("is Locked ${isLocked}");
+                  print("time interval: $selectedMinutes");
+                  print("no of push-ups: $pushups");
+                  print("app Name: $appName");
+                  print("package name: $packageName");
+                  print("is Locked $isLocked");
 
                   context.read<HomepageBloc>().add(
                     LockAppRequested(

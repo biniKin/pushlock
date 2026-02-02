@@ -21,6 +21,7 @@ class InstalledAppsRepository {
         excludeSystemApps: true,
         withIcon: true,
       );
+      
     } catch (e) {
       print("Error scanning apps: $e");
       return [];
@@ -33,23 +34,25 @@ class InstalledAppsRepository {
     required List<LockedApp> lockedApps,
     required List<Appstatmodel> stats,
   }) {
+  
     final lockedAppsMap = {for (final app in lockedApps) app.packageName: app};
 
     final statsMap = {for (final stat in stats) stat.packageName: stat};
 
     return apps.map((installedApp) {
-      final packageName = installedApp.packageName!;
+      final packageName = installedApp.packageName;
       final lockedApp = lockedAppsMap[packageName];
       final stat = statsMap[packageName];
-
+      
       return Appuimodel(
         packageName: packageName,
-        appName: installedApp.name!,
+        appName: installedApp.name,
         icon: installedApp.icon,
         dailyUsageSeconds: stat?.dailyUsageTime ?? 0, // Now it's already an int
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
-        versionName: installedApp.versionName!,
+        versionName: installedApp.versionName,
+        appCategory: installedApp.category
       );
     }).toList();
   }
@@ -85,6 +88,7 @@ class InstalledAppsRepository {
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
         versionName: cachedApp.versionName,
+        appCategory: cachedApp.appCategory
       );
     }).toList();
   }

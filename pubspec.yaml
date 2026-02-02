@@ -49,6 +49,7 @@ dependencies:
   shimmer: ^3.0.0
   shared_preferences: ^2.5.4
   lottie: ^3.3.2
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -108,3 +109,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo/app-icon2.png" 

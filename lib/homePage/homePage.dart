@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:installed_apps/app_info.dart';
-import 'package:installed_apps/installed_apps.dart';
 import 'package:pushlock/appsPage/appsPage.dart';
 import 'package:pushlock/homePage/actual_home_page.dart';
-import 'package:pushlock/homePage/widgets/appsLitsTile.dart';
-import 'package:pushlock/homePage/widgets/chart_container.dart';
-import 'package:pushlock/homePage/widgets/summary_container.dart';
-import 'package:pushlock/service/appLockService.dart';
-import 'package:pushlock/model/locked_app.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});

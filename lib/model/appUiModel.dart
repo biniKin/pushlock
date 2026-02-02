@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:installed_apps/app_category.dart';
+
 class Appuimodel {
   final String packageName;
   final String appName;
@@ -8,6 +10,7 @@ class Appuimodel {
   final bool isLocked;
   final int? timeoutSeconds;
   final String versionName;
+  final AppCategory appCategory;
 
   Appuimodel({
     required this.packageName,
@@ -17,6 +20,7 @@ class Appuimodel {
     this.timeoutSeconds,
     this.icon,
     required this.versionName,
+    required this.appCategory
   });
 
   Map<String, dynamic> toJson() => {
@@ -27,6 +31,7 @@ class Appuimodel {
     'timeoutSeconds': timeoutSeconds,
     'icon': icon?.toList(), // Convert Uint8List to List for Hive
     'versionName': versionName,
+    'appCategory':appCategory
   };
 
   factory Appuimodel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +54,7 @@ class Appuimodel {
       versionName: json["versionName"],
       icon: icon,
       timeoutSeconds: json["timeoutSeconds"],
+      appCategory: json['appCategory']
     );
   }
   Appuimodel copyWith({
@@ -63,6 +69,7 @@ class Appuimodel {
       isLocked: isLocked ?? this.isLocked,
       timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
       versionName: versionName,
+      appCategory: appCategory
     );
   }
 

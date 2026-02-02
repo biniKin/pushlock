@@ -34,38 +34,58 @@ class _OverlayLockPageState extends State<OverlayLockPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(221, 24, 24, 24),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock, size: 80, color: Colors.white),
-            Text("PushLock", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
-            SizedBox(height: 100),
-            Text(
-              "Time to do push ups!",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      backgroundColor: Colors.black87,
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, size: 80, color: Colors.white),
+              const Text(
+                "PushLock",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              "You should do push ups to unlock ${widget.appName}.",
-              style: TextStyle(color: Colors.white70, fontSize: 18),
-            ),
-            SizedBox(height: 30,),
-            SvgPicture.asset("assets/icons/push-man.svg", height: 100, width: 200,),
-            SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: _startPushups,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              const SizedBox(height: 100),
+              const Text(
+                "Time to do push ups!",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              child: Text("Start Push-ups", style: TextStyle(fontSize: 18)),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                "You should do push ups to unlock ${widget.appName}.",
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 18),
+              ),
+              const SizedBox(height: 30),
+              SvgPicture.asset(
+                "assets/icons/push-man.svg",
+                height: 100,
+                width: 200,
+              ),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: _startPushups,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 15,
+                  ),
+                ),
+                child: const Text(
+                  "Start Push-ups",
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

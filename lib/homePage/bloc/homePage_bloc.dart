@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:installed_apps/app_info.dart';
-import 'package:pushlock/data/installed_apps_cache.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/model/appStatModel.dart';
 import 'package:pushlock/model/appUiModel.dart';
@@ -133,7 +132,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         ),
       );
     } catch (e) {
-      print("error: ${e}");
+      print("error: $e");
     }
   }
 
@@ -174,7 +173,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         ),
       );
     } catch (e) {
-      print("error: ${e}");
+      print("error: $e");
     }
   }
 
@@ -201,6 +200,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
         versionName: installedApp.versionName ?? '',
+        appCategory: installedApp.category
       );
     }).toList();
   }

@@ -25,9 +25,7 @@ void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   runApp(const OverlayApp());
 }
@@ -63,6 +61,10 @@ class _OverlayAppState extends State<OverlayApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black87,
+      ),
       home: OverlayLockPage(packageName: packageName, appName: appName),
     );
   }
@@ -70,7 +72,7 @@ class _OverlayAppState extends State<OverlayApp> {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
   final LockedAppsRepository lockedAppsRepo = LockedAppsRepository();
   final AppStatsRepository appStatsRepo = AppStatsRepository();
@@ -81,14 +83,12 @@ void main() async {
     lockedAppsRepo,
   );
   final PushupSessionCache pushupSessionCache = PushupSessionCache();
-  final LocalPushupCountService localPushupCountService = LocalPushupCountService(sharedPreferences: sharedPreferences);
+  final LocalPushupCountService localPushupCountService =
+      LocalPushupCountService(sharedPreferences: sharedPreferences);
 
-  
   await Hive.initFlutter();
   //installedAppsRepo.cache.clearCachedApps();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   cameras = await availableCameras();
   runApp(
@@ -100,7 +100,7 @@ void main() async {
             lockedAppsRepo: lockedAppsRepo,
             appStatsRepo: appStatsRepo,
             pushupSessionCache: pushupSessionCache,
-            localPushupCountService: localPushupCountService
+            localPushupCountService: localPushupCountService,
           ),
         ),
         BlocProvider<AppsBloc>(create: (_) => AppsBloc(installedAppsRepo)),

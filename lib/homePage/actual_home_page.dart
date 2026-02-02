@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
@@ -39,9 +38,9 @@ class _ActualHomePageState extends State<ActualHomePage> {
         } else if(state is HomepageLoaded){
           final apps = state.mostUsedApps;
           final statapps = state.chartApps;
-          statapps.forEach((element) {
+          for (var element in statapps) {
             print(element.dailyUsageSeconds);
-          },);
+          }
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.start,
