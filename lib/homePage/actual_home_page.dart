@@ -86,7 +86,7 @@ class _ActualHomePageState extends State<ActualHomePage>
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: const Text(
-                  "Track and control your app usage",
+                  "Do push-ups to unlock apps.",
                   style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ),

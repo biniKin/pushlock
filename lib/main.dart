@@ -10,6 +10,7 @@ import 'package:pushlock/data/installed_apps_cache.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/homePage.dart';
+import 'package:pushlock/introPage/introPage.dart';
 import 'package:pushlock/overlayPage/overlay_lock_page.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
@@ -168,7 +169,7 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: navigatorKey,
       initialRoute: '/',
       routes: {
-        '/': (context) => const Homepage(),
+        '/': (context) => const Intropage(),
         '/unlock': (context) => const Unlockpage(),
       },
     );
