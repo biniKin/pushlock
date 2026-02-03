@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:pushlock/data/intro_page_flag.dart';
+import 'package:pushlock/homePage/homePage.dart';
 
 class Intropage extends StatelessWidget {
-  const Intropage({super.key});
+  final IntroPageFlag introPageFlag;
+
+  const Intropage({super.key, required this.introPageFlag});
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +28,8 @@ class Intropage extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.2),
-                    Colors.black.withOpacity(0.7),
+                    Colors.black.withValues(alpha: 0.2),
+                    Colors.black.withValues(alpha: 0.7),
                   ],
                 ),
               ),
@@ -72,8 +75,15 @@ class Intropage extends StatelessWidget {
                   width: double.infinity,
                   height: 45,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: navigate to next screen
+                    onPressed: () async {
+                      // Set flag to indicate intro has been seen
+                      await introPageFlag.createIntroPageFlag();
+
+                      // Navigate to home page
+                      if (!context.mounted) return;
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const Homepage()),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,

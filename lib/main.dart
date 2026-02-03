@@ -7,6 +7,7 @@ import 'package:pushlock/appsPage/bloc/apps_bloc.dart';
 import 'package:pushlock/camerPage/camera_page.dart';
 import 'package:pushlock/camerPage/unlockPage.dart';
 import 'package:pushlock/data/installed_apps_cache.dart';
+import 'package:pushlock/data/intro_page_flag.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/homePage.dart';
@@ -22,7 +23,7 @@ late List<CameraDescription> cameras;
 
 // Separate entry point for overlay - runs in separate FlutterEngine
 @pragma("vm:entry-point")
-void overlayMain()  {
+void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
   //await Hive.initFlutter();
 
@@ -93,6 +94,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  final IntroPageFlag introPageFlag = IntroPageFlag(
+    sharedPreferences: sharedPreferences,
+  );
   final LockedAppsRepository lockedAppsRepo = LockedAppsRepository();
   final AppStatsRepository appStatsRepo = AppStatsRepository();
   final InstalledAppsCache cache = InstalledAppsCache();
@@ -122,15 +126,25 @@ void main() async {
             localPushupCountService: localPushupCountService,
           ),
         ),
-        BlocProvider<AppsBloc>(create: (_) => AppsBloc(appsRepository: installedAppsRepo, appStatsRepo: appStatsRepo, localPushupCountService: localPushupCountService, lockedAppsRepo: lockedAppsRepo, pushupSessionCache: pushupSessionCache)),
+        BlocProvider<AppsBloc>(
+          create: (_) => AppsBloc(
+            appsRepository: installedAppsRepo,
+            appStatsRepo: appStatsRepo,
+            localPushupCountService: localPushupCountService,
+            lockedAppsRepo: lockedAppsRepo,
+            pushupSessionCache: pushupSessionCache,
+          ),
+        ),
       ],
-      child: const MyApp(),
+      child: MyApp(introPageFlag: introPageFlag),
     ),
   );
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final IntroPageFlag introPageFlag;
+
+  const MyApp({super.key, required this.introPageFlag});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -141,10 +155,13 @@ class _MyAppState extends State<MyApp> {
     'com.example.pushlock/navigation',
   );
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  bool _isLoading = true;
+  bool _showIntro = false;
 
   @override
   void initState() {
     super.initState();
+    _checkIntroFlag();
 
     // Listen for navigation commands from MainActivity
     navigationChannel.setMethodCallHandler((call) async {
@@ -162,14 +179,30 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<void> _checkIntroFlag() async {
+    final hasSeenIntro = await widget.introPageFlag.getIntroPageFlag();
+    setState(() {
+      _showIntro = !hasSeenIntro;
+      _isLoading = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
-      initialRoute: '/',
+      initialRoute: _showIntro ? '/intro' : '/',
       routes: {
-        '/': (context) => const Intropage(),
+        '/': (context) => const Homepage(),
+        '/intro': (context) => Intropage(introPageFlag: widget.introPageFlag),
         '/unlock': (context) => const Unlockpage(),
       },
     );
