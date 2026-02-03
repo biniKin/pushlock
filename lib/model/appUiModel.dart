@@ -10,7 +10,7 @@ class Appuimodel {
   final bool isLocked;
   final int? timeoutSeconds;
   final String versionName;
-  final AppCategory appCategory;
+  final String appCategory;
 
   Appuimodel({
     required this.packageName,

@@ -29,7 +29,20 @@ class OverlayUi(private val context: Context) {
     private var channel: MethodChannel? = null
 
     fun showOverlay(packageName: String, appName: String) {
-        if (flutterView != null) return
+        if (flutterView != null) {
+            Log.d("OVERLAY_UI", "Overlay already showing, updating data")
+            // Overlay already exists, just update the data
+            channel?.invokeMethod(
+                "showOverlay",
+                mapOf(
+                    "packageName" to packageName,
+                    "appName" to appName
+                )
+            )
+            return
+        }
+
+        Log.d("OVERLAY_UI", "Creating new overlay for $packageName")
 
         // Create FlutterEngine with overlayMain entry point
         flutterEngine = FlutterEngine(context)
@@ -42,6 +55,10 @@ class OverlayUi(private val context: Context) {
         
         flutterEngine!!.dartExecutor.executeDartEntrypoint(dartEntrypoint)
 
+        // Create FlutterView and attach to engine
+        flutterView = FlutterView(context).apply {
+            attachToFlutterEngine(flutterEngine!!)
+        }
 
         // SINGLE MethodChannel
         channel = MethodChannel(
@@ -65,6 +82,7 @@ class OverlayUi(private val context: Context) {
                     val pkg = call.argument<String>("packageName")
                     val appName = call.argument<String>("appName")
                     if (pkg != null) {
+                        Log.d("OVERLAY_UI", "Opening main app with camera for $pkg")
                         // Remove overlay first
                         removeOverlay()
                         
@@ -85,21 +103,7 @@ class OverlayUi(private val context: Context) {
             }
         }
 
-        // Send data AFTER engine is ready
-        Handler(Looper.getMainLooper()).post {
-            channel!!.invokeMethod(
-                "showOverlay",
-                mapOf(
-                    "packageName" to packageName,
-                    "appName" to appName
-                )
-            )
-        }
-
-        flutterView = FlutterView(context).apply {
-            attachToFlutterEngine(flutterEngine!!)
-        }
-
+        // Add view to WindowManager
         val params = WindowManager.LayoutParams(
             MATCH_PARENT,
             MATCH_PARENT,
@@ -111,17 +115,58 @@ class OverlayUi(private val context: Context) {
 
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         wm.addView(flutterView, params)
+        
+        Log.d("OVERLAY_UI", "Overlay view added to WindowManager")
+
+        // Send data AFTER view is added and engine has had time to initialize
+        // Use a longer delay to ensure Flutter is fully ready
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                Log.d("OVERLAY_UI", "Sending data to Flutter: pkg=$packageName, app=$appName")
+                channel?.invokeMethod(
+                    "showOverlay",
+                    mapOf(
+                        "packageName" to packageName,
+                        "appName" to appName
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("OVERLAY_UI", "Error sending data to Flutter: ${e.message}")
+            }
+        }, 500) // Increased delay to 500ms
     }
 
     fun removeOverlay() {
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        flutterView?.let { wm.removeView(it) }
-        flutterView = null
+        Log.d("OVERLAY_UI", "Removing overlay")
+        
+        try {
+            // First, detach FlutterView from engine
+            flutterView?.let { view ->
+                Log.d("OVERLAY_UI", "Detaching FlutterView from engine")
+                view.detachFromFlutterEngine()
+                
+                // Then remove from WindowManager
+                val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                wm.removeView(view)
+                Log.d("OVERLAY_UI", "FlutterView removed from WindowManager")
+            }
+            flutterView = null
 
-        channel?.setMethodCallHandler(null)
-        channel = null
+            // Clear method channel
+            channel?.setMethodCallHandler(null)
+            channel = null
+            Log.d("OVERLAY_UI", "Method channel cleared")
 
-        flutterEngine?.destroy()
-        flutterEngine = null
+            // Finally destroy the engine
+            flutterEngine?.let { engine ->
+                Log.d("OVERLAY_UI", "Destroying Flutter engine")
+                engine.destroy()
+            }
+            flutterEngine = null
+            Log.d("OVERLAY_UI", "Flutter engine destroyed")
+        } catch (e: Exception) {
+            Log.e("OVERLAY_UI", "Error removing overlay: ${e.message}")
+            e.printStackTrace()
+        }
     }
 }

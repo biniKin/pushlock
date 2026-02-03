@@ -1,18 +1,20 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
-import 'package:pushlock/homePage/bloc/homePage_event.dart';
+import 'package:pushlock/appsPage/bloc/apps_bloc.dart';
+import 'package:pushlock/appsPage/bloc/apps_event.dart';
 import 'package:pushlock/homePage/widgets/custom_time_picker.dart';
 import 'package:pushlock/model/locked_app.dart';
 
-
-Future<void> appDialog({
+Future<void> appsPageLockDialog({
   required BuildContext context,
   required String appName,
   required bool isLocked,
   required String packageName,
   required dynamic appIcon,
-
+  required String selectedCategory,
+  
 }) {
   final lockTimeController = TextEditingController();
   double pushups = 10;
@@ -241,8 +243,8 @@ Future<void> appDialog({
                   print("package name: $packageName");
                   print("is Locked $isLocked");
 
-                  context.read<HomepageBloc>().add(
-                    LockAppRequested(
+                  context.read<AppsBloc>().add(
+                    LockApp(
                       app: LockedApp(
                         packageName: packageName, 
                         appName: appName, 
@@ -250,7 +252,8 @@ Future<void> appDialog({
                         timeoutSeconds: selectedMinutes! *60,
                         
                       ),
-                      pushupscount: pushups.toInt()
+                      selectedCategory: selectedCategory,
+                      pushupCount: pushups.toInt()
                     ),
                   );
 

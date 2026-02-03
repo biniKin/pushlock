@@ -17,6 +17,7 @@ class InstalledAppsRepository {
   /// RAW scan (plugin only)
   Future<List<AppInfo>> scanInstalledApps() async {
     try {
+      print("scanning for installed apps");
       return await InstalledApps.getInstalledApps(
         excludeSystemApps: true,
         withIcon: true,
@@ -34,7 +35,7 @@ class InstalledAppsRepository {
     required List<LockedApp> lockedApps,
     required List<Appstatmodel> stats,
   }) {
-  
+    print("on map to ui model");
     final lockedAppsMap = {for (final app in lockedApps) app.packageName: app};
 
     final statsMap = {for (final stat in stats) stat.packageName: stat};
@@ -52,7 +53,7 @@ class InstalledAppsRepository {
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
         versionName: installedApp.versionName,
-        appCategory: installedApp.category
+        appCategory: installedApp.category.name
       );
     }).toList();
   }
@@ -108,6 +109,7 @@ class InstalledAppsRepository {
   /// Scan → merge → cache
   Future<List<Appuimodel>> scanAndCacheApps() async {
     // 1. Scan installed apps
+    print("on scan and cached apps fun");
     final installedApps = await scanInstalledApps();
 
     // 2. Load locked apps

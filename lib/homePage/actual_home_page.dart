@@ -19,23 +19,37 @@ class ActualHomePage extends StatefulWidget {
   State<ActualHomePage> createState() => _ActualHomePageState();
 }
 
-class _ActualHomePageState extends State<ActualHomePage> {
+class _ActualHomePageState extends State<ActualHomePage>
+    with WidgetsBindingObserver {
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<HomepageBloc>().add(LoadHomepageData());
   }
 
-  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh data when app comes to foreground
+    if (state == AppLifecycleState.resumed) {
+      //context.read<HomepageBloc>().add(RefreshHomepageData());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<HomepageBloc, HomepageState>(
       builder: (context, state) {
-        if(state is HomepageLoading){
+        if (state is HomepageLoading) {
           return HomeSkeletonPage();
-        } else if(state is HomepageLoaded){
+        } else if (state is HomepageLoaded) {
           final apps = state.mostUsedApps;
           final statapps = state.chartApps;
           for (var element in statapps) {
@@ -60,7 +74,11 @@ class _ActualHomePageState extends State<ActualHomePage> {
                         decoration: TextDecoration.none,
                       ),
                     ),
-                    Lottie.asset("assets/animations/pushup-white.json", height: 40, width: 40, )
+                    Lottie.asset(
+                      "assets/animations/pushup-white.json",
+                      height: 40,
+                      width: 40,
+                    ),
                   ],
                 ),
               ),
@@ -69,26 +87,31 @@ class _ActualHomePageState extends State<ActualHomePage> {
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: const Text(
                   "Track and control your app usage",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ),
-              SizedBox(height: 4,),
+              SizedBox(height: 4),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.only(left: 16, right: 16, top: 5, bottom: 16),
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 5,
+                    bottom: 16,
+                  ),
                   children: [
                     // App name
-                    
                     const SizedBox(height: 15),
-                    
+
                     // Stats + chart container
-                    ChartContainer(topApps: state.chartApps,),
+                    ChartContainer(topApps: state.chartApps),
                     const SizedBox(height: 20),
                     // Summary container
-                    SummaryContainer(lockedAppsNumber: state.lockedAppsCount, totalApps: state.totalAppsCount, totalPushups: state.totalPushups,),
+                    SummaryContainer(
+                      lockedAppsNumber: state.lockedAppsCount,
+                      totalApps: state.totalAppsCount,
+                      totalPushups: state.totalPushups,
+                    ),
                     const SizedBox(height: 20),
                     // Most used apps list
                     Row(
@@ -103,7 +126,7 @@ class _ActualHomePageState extends State<ActualHomePage> {
                           ),
                         ),
                         // Text(
-                        //   "see more", 
+                        //   "see more",
                         //   style: TextStyle(
                         //     color: Colors.deepPurpleAccent
                         //   ),
@@ -118,50 +141,50 @@ class _ActualHomePageState extends State<ActualHomePage> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemBuilder: (context, index) {
                         final app = apps[index];
-                        
-                        
-                        return  Appslitstile(
-                          name: app.appName, 
-                          isLocked: app.isLocked, 
-                          onTap: ()async{
-                            final pushUpCount = await PushupSessionCache().getPushupCount(app.packageName);
-                            print("pushup count for ${app.appName}: $pushUpCount");
-                            app.isLocked ? 
-                            await unlockAppDialog(
-                              context: context, 
-                              appName: app.appName, 
-                              packageName: app.packageName, 
-                              appIcon: app.icon!, 
-                              timeoutMinutes: app.timeoutSeconds!, 
-                              pushups: pushUpCount
-                              ) :
-                
-                              await appDialog(
-                                context: context,
-                                appIcon: app.icon ,
-                                isLocked: false, 
-                                appName: app.appName, 
-                                packageName: app.packageName, 
-                              );
-                          }, 
+
+                        return Appslitstile(
+                          name: app.appName,
+                          isLocked: app.isLocked,
+                          onTap: () async {
+                            final pushUpCount = await PushupSessionCache()
+                                .getPushupCount(app.packageName);
+                            print(
+                              "pushup count for ${app.appName}: $pushUpCount",
+                            );
+                            app.isLocked
+                                ? await unlockAppDialog(
+                                    context: context,
+                                    appName: app.appName,
+                                    packageName: app.packageName,
+                                    appIcon: app.icon!,
+                                    timeoutMinutes: app.timeoutSeconds!,
+                                    pushups: pushUpCount,
+                                  )
+                                : await appDialog(
+                                    context: context,
+                                    appIcon: app.icon,
+                                    isLocked: false,
+                                    appName: app.appName,
+                                    packageName: app.packageName,
+                                  );
+                          },
                           usageTime: app.dailyUsageSeconds,
-                          appImage: app.icon  != null ? Image.memory(app.icon!) : Icon(Icons.apps),
+                          appImage: app.icon != null
+                              ? Image.memory(app.icon!)
+                              : Icon(Icons.apps),
                         );
                       },
                     ),
-                    SizedBox(height: 100,),
+                    SizedBox(height: 100),
                   ],
                 ),
               ),
             ],
           );
-        } else{
+        } else {
           return HomeSkeletonPage();
         }
-
-        
-        
-      }
+      },
     );
   }
 }

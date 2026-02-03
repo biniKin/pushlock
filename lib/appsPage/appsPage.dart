@@ -4,6 +4,8 @@ import 'package:installed_apps/app_category.dart';
 import 'package:pushlock/appsPage/bloc/apps_bloc.dart';
 import 'package:pushlock/appsPage/bloc/apps_event.dart';
 import 'package:pushlock/appsPage/bloc/apps_state.dart';
+import 'package:pushlock/appsPage/widget/apps_page_lock_dialog.dart';
+import 'package:pushlock/appsPage/widget/apps_page_unlock_dialog.dart';
 import 'package:pushlock/appsPage/widget/apps_skeleton_container.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/homePage/widgets/app_dialog.dart';
@@ -19,12 +21,14 @@ class Appspage extends StatefulWidget {
 }
 
 class _AppspageState extends State<Appspage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
+  String? category;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
     context.read<AppsBloc>().add(LoadApps());
 
@@ -38,24 +42,34 @@ class _AppspageState extends State<Appspage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh data when app comes to foreground
+    if (state == AppLifecycleState.resumed) {
+      context.read<AppsBloc>().add(RefreshApps());
+    }
+  }
+
   void _onTabChanged(int index) {
-    AppCategory? category;
+    
     switch (index) {
       case 0:
         category = null; // All
         break;
       case 1:
-        category = AppCategory.social;
+        category = AppCategory.social.name;
         break;
       case 2:
-        category = AppCategory.game;
+        category = AppCategory.game.name;
         break;
       case 3:
-        category = AppCategory.productivity;
+        category = AppCategory.productivity.name;
         break;
     }
     context.read<AppsBloc>().add(CategoryChanged(appCategory: category));
@@ -114,9 +128,9 @@ class _AppspageState extends State<Appspage>
             child: apps.isEmpty
                 ? _buildEmptyState()
                 : ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.only(left: 16, right: 16, top: 0),
                     children: [
-                      const SizedBox(height: 15),
+                      const SizedBox(height: 5),
                       ListView.builder(
                         itemCount: apps.length,
                         shrinkWrap: true,
@@ -135,21 +149,23 @@ class _AppspageState extends State<Appspage>
                               if (!mounted) return;
 
                               if (app.isLocked) {
-                                await unlockAppDialog(
+                                await appsPageUnlockAppDialog(
                                   context: context,
                                   appName: app.appName,
                                   packageName: app.packageName,
                                   appIcon: app.icon!,
                                   timeoutMinutes: app.timeoutSeconds!,
                                   pushups: pushUpCount,
+                                  selectedCategory: category ?? ''
                                 );
                               } else {
-                                await appDialog(
+                                await appsPageLockDialog(
                                   context: context,
                                   appIcon: app.icon,
                                   isLocked: false,
                                   appName: app.appName,
                                   packageName: app.packageName,
+                                  selectedCategory: category??""
                                 );
                               }
                             },
@@ -200,22 +216,25 @@ class _AppspageState extends State<Appspage>
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.grey[800],
+        //color: Colors.grey[800],
         borderRadius: BorderRadius.circular(8),
       ),
       child: TabBar(
         controller: _tabController,
-        indicator: BoxDecoration(
-          color: Colors.grey[700],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        labelColor: Colors.white,
+        indicatorAnimation: TabIndicatorAnimation.linear,
+        // indicator: BoxDecoration(
+
+        //   color: Colors.grey[700],
+        //   borderRadius: BorderRadius.circular(8),
+        // ),
+        labelColor: const Color.fromARGB(255, 120, 92, 210),
         unselectedLabelColor: Colors.grey[400],
         labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         unselectedLabelStyle: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.normal,
         ),
+        dividerHeight: 0,
         tabs: const [
           Tab(text: "All"),
           Tab(text: "Social"),

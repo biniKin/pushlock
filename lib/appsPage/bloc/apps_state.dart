@@ -11,7 +11,7 @@ class AppsLoaded extends AppsState {
   final List<Appuimodel> apps;
   final List<Appuimodel> filteredApps;
   final bool fromCache;
-  final AppCategory? selectedCategory;
+  final String? selectedCategory;
 
   AppsLoaded({
     required this.apps,
@@ -24,7 +24,7 @@ class AppsLoaded extends AppsState {
     List<Appuimodel>? apps,
     List<Appuimodel>? filteredApps,
     bool? fromCache,
-    AppCategory? selectedCategory,
+    String? selectedCategory,
   }) {
     return AppsLoaded(
       apps: apps ?? this.apps,

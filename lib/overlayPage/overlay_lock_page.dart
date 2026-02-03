@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 
 class OverlayLockPage extends StatefulWidget {
   const OverlayLockPage({
@@ -19,23 +19,36 @@ class OverlayLockPage extends StatefulWidget {
 class _OverlayLockPageState extends State<OverlayLockPage> {
   static const platform = MethodChannel('overlay_channel');
 
+  @override
+  void initState() {
+    super.initState();
+    debugPrint(
+      "OVERLAY_PAGE: initState called with packageName=${widget.packageName}, appName=${widget.appName}",
+    );
+  }
+
   Future<void> _startPushups() async {
     try {
-      // Tell Kotlin to open the main app to the camera page
+      debugPrint("OVERLAY_PAGE: Start pushups button pressed");
+
+      // Call Kotlin to remove overlay and open main app with camera page
       await platform.invokeMethod('openMainApp', {
         'packageName': widget.packageName,
         'appName': widget.appName,
       });
     } catch (e) {
-      print('Error opening main app: $e');
+      debugPrint('OVERLAY_PAGE: Error calling openMainApp: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black87,
-      body: SafeArea(
+    debugPrint(
+      "OVERLAY_PAGE: Building with packageName=${widget.packageName}, appName=${widget.appName}",
+    );
+    return Material(
+      color: Colors.black87,
+      
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -65,11 +78,7 @@ class _OverlayLockPageState extends State<OverlayLockPage> {
                 style: const TextStyle(color: Colors.white70, fontSize: 18),
               ),
               const SizedBox(height: 30),
-              SvgPicture.asset(
-                "assets/icons/push-man.svg",
-                height: 100,
-                width: 200,
-              ),
+  
               const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: _startPushups,
@@ -87,7 +96,7 @@ class _OverlayLockPageState extends State<OverlayLockPage> {
             ],
           ),
         ),
-      ),
+      
     );
   }
 }

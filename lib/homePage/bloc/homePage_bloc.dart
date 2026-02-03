@@ -42,6 +42,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
 
       // Check if this is a refresh event
       if (event is RefreshHomepageData) {
+        
         // Force full scan and cache
         uiApps = await installedAppsRepo.scanAndCacheApps();
       } else {
@@ -49,13 +50,17 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         final cachedApps = await installedAppsRepo.getCachedApps();
 
         if (cachedApps.isEmpty) {
+          print("cached apps are empty.");
           // No cache, do full scan
           uiApps = await installedAppsRepo.scanAndCacheApps();
+          print("ui apps found: ${uiApps.length}");
         } else {
+          print("cached apps are not empty");
           // Use cached app list but refresh stats
           uiApps = await installedAppsRepo.refreshStatsForCachedApps(
             cachedApps,
           );
+          print("ui apps found on else bloc: ${uiApps.length}");
         }
       }
 
@@ -81,6 +86,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
       );
     } catch (e) {
       emit(HomepageError(e.toString()));
+      print("error on loading apps: $e");
     }
   }
 
@@ -200,7 +206,7 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
         isLocked: lockedApp != null,
         timeoutSeconds: lockedApp?.timeoutSeconds,
         versionName: installedApp.versionName ?? '',
-        appCategory: installedApp.category
+        appCategory: installedApp.category.name
       );
     }).toList();
   }
