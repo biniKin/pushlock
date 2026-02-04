@@ -64,7 +64,7 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
         if (app.packageName == event.app.packageName) {
           return app.copyWith(
             isLocked: true,
-            timeoutSeconds: event.app.timeoutSeconds,
+            // timeoutSeconds: event.app.timeoutSeconds,
           );
         }
         return app;
@@ -73,13 +73,14 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
       // 3️⃣ Recalculate counts
       final lockedCount = updatedApps.where((a) => a.isLocked).length;
 
-      final updatedFilter = _applyCategoryFilter(updatedApps, currentState.selectedCategory);
+      final updatedFilter = _applyCategoryFilter(updatedApps, event.selectedCategory);
 
       // emit
       emit(
         currentState.copyWith(
           apps: updatedApps,
-          filteredApps: updatedFilter
+          filteredApps: updatedFilter,
+          selectedCategory: event.selectedCategory
         ),
       );
     } catch (e) {
@@ -116,14 +117,15 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
       // 3️⃣ Recalculate counts
       final lockedCount = updatedApps.where((a) => a.isLocked).length;
 
-      final updatedFilter = _applyCategoryFilter(updatedApps, currentState.selectedCategory);
+      final updatedFilter = _applyCategoryFilter(updatedApps, event.selectedCategory);
 
       // emit
       emit(
         currentState.copyWith(
           apps: updatedApps,
-          filteredApps: updatedFilter
+          filteredApps: updatedFilter,
           // lockedAppsCount: lockedCount,
+          selectedCategory: event.selectedCategory
         ),
       );
     } catch (e) {

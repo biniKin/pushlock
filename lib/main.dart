@@ -202,7 +202,7 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: navigatorKey,
       initialRoute: _showIntro ? '/intro' : '/',
       routes: {
-        '/': (context) => const PermissionsPage(),
+        '/': (context) => Homepage(),
         '/intro': (context) => Intropage(introPageFlag: widget.introPageFlag),
         '/unlock': (context) => const Unlockpage(),
       },

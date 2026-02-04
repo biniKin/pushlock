@@ -46,6 +46,8 @@
 
 package com.example.pushlock
 
+import android.app.AppOpsManager
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -81,42 +83,25 @@ class MainActivity : FlutterActivity() {
         // Add test locked apps to database (for testing only)
         TestHelper.addTestLockedApps(this)
 
-        // Check and request permissions in order
-        checkAndRequestPermissions()
+        // Don't automatically request permissions - let Flutter handle it through permissions page
+        // Only start service if all permissions are already granted
+        if (hasAllRequiredPermissions()) {
+            startAppLockService()
+        }
     }
     
     override fun onResume() {
         super.onResume()
-        // Check permissions again when returning to the app
-        checkAndRequestPermissions()
+        // Check if permissions were granted and start service if needed
+        if (hasAllRequiredPermissions()) {
+            startAppLockService()
+        }
     }
     
-    private fun checkAndRequestPermissions() {
-        // Check permissions in priority order
-        if (!UsageAccessHelper.hasUsageAccess(this)) {
-            UsageAccessHelper.requestUsageAccess(this)
-            return
-        }
-        
-        if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            )
-            startActivity(intent)
-            return
-        }
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
-                requestBatteryOptimizationExemption()
-                return
-            }
-        }
-        
-        // All permissions granted, start the service
-        startAppLockService()
+    private fun hasAllRequiredPermissions(): Boolean {
+        val hasUsage = UsageAccessHelper.hasUsageAccess(this)
+        val hasOverlay = Settings.canDrawOverlays(this)
+        return hasUsage && hasOverlay
     }
 
     private fun requestBatteryOptimizationExemption() {
@@ -498,6 +483,66 @@ class MainActivity : FlutterActivity() {
 
                     val granted = mode == AppOpsManager.MODE_ALLOWED
                     result.success(granted)
+                }
+
+                "requestOverlayPermission" -> {
+                    try {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:$packageName")
+                        )
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "requestUsagePermission" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "requestBatteryOptimization" -> {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                            intent.data = Uri.parse("package:$packageName")
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                            result.success(true)
+                        } else {
+                            result.success(false)
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+
+                "hasBatteryOptimization" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+                        val isIgnoring = powerManager.isIgnoringBatteryOptimizations(packageName)
+                        result.success(isIgnoring)
+                    } else {
+                        result.success(true) // Not needed on older versions
+                    }
+                }
+
+                "startAppLockService" -> {
+                    try {
+                        startAppLockService()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
                 }
 
                 else -> {

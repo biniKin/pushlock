@@ -26,9 +26,69 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> {
     required this.localPushupCountService
   }) : super(HomepageInitial()) {
     on<LoadHomepageData>(_onLoadHomepage);
-    on<RefreshHomepageData>(_onLoadHomepage);
+    on<RefreshHomepageData>(_onRefHomepage);
     on<LockAppRequested>(_onLockAppRequest);
     on<UnlockAppRequested>(_onUnlockAppRequest);
+  }
+
+  
+  Future<void> _onRefHomepage(
+    HomepageEvent event,
+    Emitter<HomepageState> emit,
+  ) async {
+    // emit(HomepageLoading());
+
+    try {
+      List<Appuimodel> uiApps;
+
+      // Check if this is a refresh event
+      if (event is RefreshHomepageData) {
+        
+        // Force full scan and cache
+        uiApps = await installedAppsRepo.scanAndCacheApps();
+      } else {
+        // Hybrid approach: Try to load from cache first
+        final cachedApps = await installedAppsRepo.getCachedApps();
+
+        if (cachedApps.isEmpty) {
+          print("cached apps are empty.");
+          // No cache, do full scan
+          uiApps = await installedAppsRepo.scanAndCacheApps();
+          print("ui apps found: ${uiApps.length}");
+        } else {
+          print("cached apps are not empty");
+          // Use cached app list but refresh stats
+          uiApps = await installedAppsRepo.refreshStatsForCachedApps(
+            cachedApps,
+          );
+          print("ui apps found on else bloc: ${uiApps.length}");
+        }
+      }
+
+      // Sort by usage time
+      uiApps.sort((a, b) => b.dailyUsageSeconds.compareTo(a.dailyUsageSeconds));
+
+      // Prepare dashboard data
+      final chartApps = uiApps.take(4).toList();
+      final lockedCount = uiApps.where((app) => app.isLocked).length;
+      final totalCount = uiApps.length;
+
+      // get it from shared pref
+      final totalpushups = localPushupCountService.getPushupCountLocally();
+
+      emit(
+        HomepageLoaded(
+          chartApps: chartApps,
+          lockedAppsCount: lockedCount,
+          totalAppsCount: totalCount,
+          mostUsedApps: uiApps,
+          totalPushups: totalpushups
+        ),
+      );
+    } catch (e) {
+      emit(HomepageError(e.toString()));
+      print("error on loading apps: $e");
+    }
   }
 
   Future<void> _onLoadHomepage(

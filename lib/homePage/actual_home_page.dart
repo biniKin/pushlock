@@ -39,7 +39,7 @@ class _ActualHomePageState extends State<ActualHomePage>
     super.didChangeAppLifecycleState(state);
     // Refresh data when app comes to foreground
     if (state == AppLifecycleState.resumed) {
-      //context.read<HomepageBloc>().add(RefreshHomepageData());
+      context.read<HomepageBloc>().add(RefreshHomepageData());
     }
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pushlock/homePage/homePage.dart';
 import 'package:pushlock/service/appLockService.dart';
 
-
 class PermissionsPage extends StatefulWidget {
   const PermissionsPage({super.key});
 
@@ -10,38 +9,70 @@ class PermissionsPage extends StatefulWidget {
   State<PermissionsPage> createState() => _PermissionsPageState();
 }
 
-class _PermissionsPageState extends State<PermissionsPage> {
-  bool canContinue = false;
-  final AppLockService appLockService = AppLockService();
+class _PermissionsPageState extends State<PermissionsPage>
+    with WidgetsBindingObserver {
+  bool _hasOverlayPermission = false;
+  bool _hasUsagePermission = false;
+  bool _isChecking = true;
+  final AppLockService _appLockService = AppLockService();
 
-  // check for display over other apps permission is allowed
-  void _initial() async{
-    final canDrawOverlay = await appLockService.canDrawOverlay(); 
-    final hasUsagePer = await appLockService.hasUsageAccess();
-    if(hasUsagePer && canDrawOverlay){
-      setState(() {
-        canContinue = true;
-      });
-    } 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkPermissions();
   }
 
-  Future openSettingsForOverlay() async{
-    await appLockService.navigateToOverlaySettings();
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
-  Future openSettingsForUsageAccess() async{
-    await appLockService.navigateToUsageSettings();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Check permissions when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissions();
+    }
   }
 
+  // Check for display over other apps and usage access permissions
+  Future<void> _checkPermissions() async {
+    setState(() => _isChecking = true);
 
+    final canDrawOverlay = await _appLockService.canDrawOverlay();
+    final hasUsagePer = await _appLockService.hasUsageAccess();
 
-  // navigate to home page
-  void continueToHomePage() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => Homepage()), 
-      (route)=>false
-    );
+    setState(() {
+      _hasOverlayPermission = canDrawOverlay;
+      _hasUsagePermission = hasUsagePer;
+      _isChecking = false;
+    });
   }
+
+  Future<void> _openSettingsForOverlay() async {
+    await _appLockService.navigateToOverlaySettings();
+  }
+
+  Future<void> _openSettingsForUsageAccess() async {
+    await _appLockService.navigateToUsageSettings();
+  }
+
+  // Navigate to home page
+  void _continueToHomePage() async {
+    if (_hasOverlayPermission && _hasUsagePermission) {
+      // Start the app lock service
+      await _appLockService.startAppLockService();
+
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const Homepage()));
+    }
+  }
+
+  bool get _canContinue => _hasOverlayPermission && _hasUsagePermission;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +95,6 @@ class _PermissionsPageState extends State<PermissionsPage> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: ListView(
-                //crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   /// 🔝 Header
                   Row(
@@ -79,17 +109,19 @@ class _PermissionsPageState extends State<PermissionsPage> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {
-                          // navigate to next page
-                          canContinue ? continueToHomePage() : (){};
-                        },
+                        onPressed: _canContinue ? _continueToHomePage : null,
                         child: Text(
                           "Continue",
                           style: TextStyle(
-                            color: canContinue ? Colors.white : Colors.grey[700],
+                            color: _canContinue
+                                ? Colors.white
+                                : Colors.grey[700],
+                            fontWeight: _canContinue
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
-                      )
+                      ),
                     ],
                   ),
 
@@ -103,55 +135,54 @@ class _PermissionsPageState extends State<PermissionsPage> {
 
                   const SizedBox(height: 24),
 
-                  /// 🪟 Display over other apps
-                  _permissionCard(
-                    isForbattery: false,
-                    icon: Icons.layers,
-                    title: "Display over other apps",
-                    description:
-                        "Allows PushLock to show a lock screen over selected apps "
-                        "when they are opened.",
-                    onGrant: () {
-                      // open overlay permission settings
-                    },
-                    imageAsset: [
-                      "assets/images/appearPer.jpg",
-                    ]
-                  ),
+                  if (_isChecking)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    )
+                  else ...[
+                    /// 🪟 Display over other apps
+                    _permissionCard(
+                      isGranted: _hasOverlayPermission,
+                      icon: Icons.layers,
+                      title: "Display over other apps",
+                      description:
+                          "Allows PushLock to show a lock screen over selected apps "
+                          "when they are opened.",
+                      onGrant: _openSettingsForOverlay,
+                      imageAsset: ["assets/images/appearPer.jpg"],
+                    ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  /// 📊 Usage access
-                  _permissionCard(
-                    isForbattery: false,
-                    icon: Icons.bar_chart,
-                    title: "Usage access",
-                    description:
-                        "Used to detect which app is currently open so PushLock "
-                        "can lock selected apps.",
-                    onGrant: () {
-                      // open usage access settings
-                    },
-                    imageAsset: ["assets/images/usagePer.jpg"]
-                  ),
+                    /// 📊 Usage access
+                    _permissionCard(
+                      isGranted: _hasUsagePermission,
+                      icon: Icons.bar_chart,
+                      title: "Usage access",
+                      description:
+                          "Used to detect which app is currently open so PushLock "
+                          "can lock selected apps.",
+                      onGrant: _openSettingsForUsageAccess,
+                      imageAsset: ["assets/images/usagePer.jpg"],
+                    ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  /// 🔋 Battery optimization
-                  _permissionCard(
-                    isForbattery: true,
-                    icon: Icons.battery_saver,
-                    title: "Disable battery optimization",
-                    description:
-                        "Prevents the system from stopping PushLock in the background "
-                        "so app locking works reliably.",
-                    onGrant: () {
-                      // open battery optimization settings
-                    },
-                    imageAsset: [
-                      "assets/images/batteryPer.jpg"
-                    ]
-                  ),
+                    /// 🔋 Battery optimization info
+                    _permissionCard(
+                      isGranted: null, // Not checked here, will be on home page
+                      icon: Icons.battery_saver,
+                      title: "Disable battery optimization",
+                      description:
+                          "Prevents the system from stopping PushLock in the background "
+                          "so app locking works reliably. You'll be asked for this on the home page.",
+                      onGrant: null,
+                      imageAsset: ["assets/images/batteryPer.jpg"],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -162,24 +193,32 @@ class _PermissionsPageState extends State<PermissionsPage> {
   }
 
   Widget _permissionCard({
+    required bool? isGranted,
     required IconData icon,
     required String title,
     required String description,
-    required VoidCallback onGrant,
+    required VoidCallback? onGrant,
     required List<String> imageAsset,
-    required bool isForbattery,
   }) {
+    final bool showGrantButton = isGranted == false && onGrant != null;
+    final bool showCheckmark = isGranted == true;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF252424),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF403F3F)),
+        border: Border.all(
+          color: showCheckmark
+              ? Colors.green.withValues(alpha: 0.5)
+              : const Color(0xFF403F3F),
+          width: showCheckmark ? 2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// Icon + title
+          /// Icon + title + checkmark
           Row(
             children: [
               Icon(icon, color: Colors.white, size: 28),
@@ -194,6 +233,8 @@ class _PermissionsPageState extends State<PermissionsPage> {
                   ),
                 ),
               ),
+              if (showCheckmark)
+                const Icon(Icons.check_circle, color: Colors.green, size: 24),
             ],
           ),
 
@@ -207,7 +248,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
 
           const SizedBox(height: 12),
 
-          /// Image row placeholder
+          /// Image row
           SizedBox(
             height: 100,
             child: ListView.builder(
@@ -227,25 +268,24 @@ class _PermissionsPageState extends State<PermissionsPage> {
 
           const SizedBox(height: 12),
 
-          /// Grant button
-          isForbattery ? SizedBox.shrink() : Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onGrant,
-              child: const Text(
-                "Grant access",
-                style: TextStyle(color: Color(0xFFF89F1A)),
+          /// Grant button (only show if not granted)
+          if (showGrantButton)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onGrant,
+                child: const Text(
+                  "Grant access",
+                  style: TextStyle(color: Color(0xFFF89F1A)),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _imagePlaceholder({
-    required String imageAsset,
-  }) {
+  Widget _imagePlaceholder({required String imageAsset}) {
     return SizedBox(
       width: 160,
       child: ClipRRect(

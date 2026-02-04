@@ -4,22 +4,35 @@ import 'package:pushlock/model/locked_app.dart';
 class AppLockService {
   static const platform = MethodChannel("com.example.pushlock/app_lock");
 
-  Future<bool> canDrawOverlay() async{
-    final result = await platform.invokeMethod("canDrawOverlat");
+  Future<bool> canDrawOverlay() async {
+    final result = await platform.invokeMethod("canDrawOverLay");
     return result ?? false;
   }
 
-  Future<bool> hasUsageAccess() async{
+  Future<bool> hasUsageAccess() async {
     final res = await platform.invokeMethod("hasUsageAccess");
     return res ?? false;
   }
 
-  Future<void> navigateToOverlaySettings() async{
+  Future<void> navigateToOverlaySettings() async {
     await platform.invokeMethod("requestOverlayPermission");
   }
 
-  Future<void> navigateToUsageSettings() async{
+  Future<void> navigateToUsageSettings() async {
     await platform.invokeMethod("requestUsagePermission");
+  }
+
+  Future<void> navigateToBatterySettings() async {
+    await platform.invokeMethod("requestBatteryOptimization");
+  }
+
+  Future<bool> hasBatteryOptimization() async {
+    final res = await platform.invokeMethod("hasBatteryOptimization");
+    return res ?? false;
+  }
+
+  Future<void> startAppLockService() async {
+    await platform.invokeMethod("startAppLockService");
   }
 
   // addLockedApp: sends packageName, appName, timeoutSeconds, isStrict. return success/failure
@@ -108,8 +121,9 @@ class AppLockService {
       //   packageName,
       // );
 
-      MethodChannel('overlay_channel')
-        .invokeMethod('unlock', {'packageName': packageName});
+      MethodChannel(
+        'overlay_channel',
+      ).invokeMethod('unlock', {'packageName': packageName});
 
       // return result ?? false;
     } catch (e) {

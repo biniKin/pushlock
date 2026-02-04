@@ -154,9 +154,9 @@ class _AppspageState extends State<Appspage>
                                   appName: app.appName,
                                   packageName: app.packageName,
                                   appIcon: app.icon!,
-                                  timeoutMinutes: app.timeoutSeconds!,
+                                  timeoutMinutes: app.timeoutSeconds ?? 0,
                                   pushups: pushUpCount,
-                                  selectedCategory: category ?? ''
+                                  selectedCategory: category ?? '',
                                 );
                               } else {
                                 await appsPageLockDialog(
@@ -165,7 +165,7 @@ class _AppspageState extends State<Appspage>
                                   isLocked: false,
                                   appName: app.appName,
                                   packageName: app.packageName,
-                                  selectedCategory: category??""
+                                  selectedCategory: category ?? ''
                                 );
                               }
                             },
@@ -214,7 +214,7 @@ class _AppspageState extends State<Appspage>
 
   Widget _buildTabBar() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 16),
       decoration: BoxDecoration(
         //color: Colors.grey[800],
         borderRadius: BorderRadius.circular(8),
@@ -227,6 +227,8 @@ class _AppspageState extends State<Appspage>
         //   color: Colors.grey[700],
         //   borderRadius: BorderRadius.circular(8),
         // ),
+        isScrollable: true,
+        
         labelColor: const Color.fromARGB(255, 120, 92, 210),
         unselectedLabelColor: Colors.grey[400],
         labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),

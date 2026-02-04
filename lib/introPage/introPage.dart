@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pushlock/data/intro_page_flag.dart';
-import 'package:pushlock/homePage/homePage.dart';
+import 'package:pushlock/permissionsPage/permissions_page.dart';
 
 class Intropage extends StatelessWidget {
   final IntroPageFlag introPageFlag;
@@ -79,10 +79,12 @@ class Intropage extends StatelessWidget {
                       // Set flag to indicate intro has been seen
                       await introPageFlag.createIntroPageFlag();
 
-                      // Navigate to home page
+                      // Navigate to permissions page
                       if (!context.mounted) return;
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const Homepage()),
+                        MaterialPageRoute(
+                          builder: (_) => const PermissionsPage(),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
