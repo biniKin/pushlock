@@ -6,10 +6,17 @@ import 'package:pushlock/appsPage/bloc/apps_event.dart';
 import 'package:pushlock/appsPage/bloc/apps_state.dart';
 import 'package:pushlock/data/pushup_session_cache.dart';
 import 'package:pushlock/model/appUiModel.dart';
+import 'package:pushlock/model/locked_app.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
 import 'package:pushlock/repositories/locked_apps_repository.dart';
 import 'package:pushlock/service/local_pushup_count_service.dart';
+
+class LockedAppsUpdated extends AppsEvent {
+  final List<LockedApp> lockedApps;
+  LockedAppsUpdated(this.lockedApps);
+}
+
 
 
 class AppsBloc extends Bloc<AppsEvent, AppsState> {
@@ -18,6 +25,7 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
   final AppStatsRepository appStatsRepo;
   final PushupSessionCache pushupSessionCache;
   final LocalPushupCountService localPushupCountService;
+  late final StreamSubscription _lockedAppsSub;
 
   AppsBloc({
     required this.appsRepository,
@@ -31,6 +39,42 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
     on<CategoryChanged>(_onCategoryChanged);
     on<LockApp>(_onLockApp);
     on<UnlockApp>(_onUnlockapp);
+    on<LockedAppsUpdated>(_onLockedAppsUpdated);
+    _lockedAppsSub = lockedAppsRepo.lockedAppsStream  
+      .listen((lockedApps) {
+        add(LockedAppsUpdated(lockedApps));
+      });
+  }
+
+  Future _onLockedAppsUpdated(
+    LockedAppsUpdated event,
+    Emitter<AppsState> emit,
+  ) async {
+    if (state is! AppsLoaded) return;
+
+    final currentState = state as AppsLoaded;
+
+    // Build map of locked apps from repository truth
+    final lockedMap = {for (final l in event.lockedApps) l.packageName: l};
+
+    // Update apps list with locked state and timeout
+    final updatedApps = currentState.apps.map((app) {
+      final lockedApp = lockedMap[app.packageName];
+      return app.copyWith(
+        isLocked: lockedApp != null,
+        timeoutSeconds: lockedApp?.timeoutSeconds,
+      );
+    }).toList();
+
+    // Re-apply category filter so filteredApps stays in sync
+    final updatedFiltered = _applyCategoryFilter(updatedApps, currentState.selectedCategory);
+
+    emit(
+      currentState.copyWith(
+        apps: updatedApps,
+        filteredApps: updatedFiltered,
+      ),
+    );
   }
 
   Future _onLockApp(
@@ -232,5 +276,13 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
     if (category == null || category.isEmpty) return apps;
     return apps.where((a) => a.appCategory == category).toList();
   }
+
+
+  @override
+  Future<void> close() {
+    _lockedAppsSub.cancel();
+    return super.close();
+  }
+
 
 }

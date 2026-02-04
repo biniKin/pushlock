@@ -1,8 +1,16 @@
+import 'dart:async';
+
 import 'package:pushlock/service/appLockService.dart';
 import 'package:pushlock/model/locked_app.dart';
 
 class LockedAppsRepository {
   final AppLockService _appLockService = AppLockService();
+
+
+  final StreamController<List<LockedApp>> _lockedAppsController = 
+    StreamController<List<LockedApp>>.broadcast();
+
+  Stream<List<LockedApp>> get lockedAppsStream => _lockedAppsController.stream;
 
   Future<List<LockedApp>> getLockedApps() async {
     try {
@@ -14,9 +22,16 @@ class LockedAppsRepository {
     }
   }
 
+  
+
   Future<bool> lockApp(LockedApp app) async {
     try {
-      return await _appLockService.addLockedApp(app);
+      final result = await _appLockService.addLockedApp(app);
+      if(result){
+        await _emitLockedApps();
+      }
+      return result;
+
     } catch (e) {
       print("Error locking app: $e");
       return false;
@@ -25,7 +40,12 @@ class LockedAppsRepository {
 
   Future<bool> unlockApp(String packageName) async {
     try {
-      return await _appLockService.removeLockedApp(packageName);
+      final res = await _appLockService.removeLockedApp(packageName);
+      if(res){
+        await _emitLockedApps();
+
+      }
+      return res;
     } catch (e) {
       print("Error unlocking app: $e");
       return false;
@@ -34,7 +54,10 @@ class LockedAppsRepository {
 
   Future<bool> updateLockedApp(LockedApp app) async {
     try {
-      return await _appLockService.updateLockedApp(app);
+      final result = await _appLockService.updateLockedApp(app);
+      if(result) await _emitLockedApps();
+
+      return result;
     } catch (e) {
       print("Error updating locked app: $e");
       return false;
@@ -49,4 +72,19 @@ class LockedAppsRepository {
       return false;
     }
   }
+
+  Future<void> _emitLockedApps() async {
+    final apps = await getLockedApps();
+    _lockedAppsController.add(apps);
+  }
+
+  Future<void> loadInitialState() async {
+    await _emitLockedApps();
+  }
+
+  void dispose(){
+    _lockedAppsController.close();
+  }
+
+
 }

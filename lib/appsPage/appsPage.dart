@@ -21,14 +21,14 @@ class Appspage extends StatefulWidget {
 }
 
 class _AppspageState extends State<Appspage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? category;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    // WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 5, vsync: this);
     context.read<AppsBloc>().add(LoadApps());
 
@@ -42,19 +42,19 @@ class _AppspageState extends State<Appspage>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    // WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    // Refresh data when app comes to foreground
-    if (state == AppLifecycleState.resumed) {
-      //context.read<AppsBloc>().add(RefreshApps());
-    }
-  }
+  // @override
+  // void didChangeAppLifecycleState(AppLifecycleState state) {
+  //   super.didChangeAppLifecycleState(state);
+  //   // Refresh data when app comes to foreground
+  //   if (state == AppLifecycleState.resumed) {
+  //     //context.read<AppsBloc>().add(RefreshApps());
+  //   }
+  // }
 
   void _onTabChanged(int index) {
     
@@ -246,13 +246,14 @@ class _AppspageState extends State<Appspage>
             fontSize: 14,
             fontWeight: FontWeight.normal,
           ),
+          
           dividerHeight: 0,
-          tabs: const [
-            Tab(text: "All", icon: Icon(Icons.apps)),
-            Tab(text: "Locked apps", icon: Icon(Icons.apps)),
-            Tab(text: "Social", icon: Icon(Icons.people)),
-            Tab(text: "Games",  icon: Icon(Icons.gamepad)),
-            Tab(text: "Productivity", icon: Icon(Icons.work)),
+          tabs:  [
+            Tab(text: "All", icon: Icon(Icons.apps, color: Colors.grey[600],)),
+            Tab(text: "Locked apps", icon: Icon(Icons.lock, color: Colors.grey[600])),
+            Tab(text: "Social", icon: Icon(Icons.people, color: Colors.grey[600])),
+            Tab(text: "Games",  icon: Icon(Icons.gamepad, color: Colors.grey[600])),
+            Tab(text: "Productivity", icon: Icon(Icons.work, color: Colors.grey[600])),
           ],
         ),
       ),
