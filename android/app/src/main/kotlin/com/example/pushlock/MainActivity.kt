@@ -483,6 +483,23 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "canDrawOverLay" -> {
+                    val canDraw = Settings.canDrawOverlays(applicationContext)
+                    result.success(canDraw)
+                }
+
+                "hasUsageAccess" -> {
+                    val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+                    val mode = appOps.checkOpNoThrow(
+                        AppOpsManager.OPSTR_GET_USAGE_STATS,
+                        android.os.Process.myUid(),
+                        packageName
+                    )
+
+                    val granted = mode == AppOpsManager.MODE_ALLOWED
+                    result.success(granted)
+                }
+
                 else -> {
                     result.notImplemented()
                 }

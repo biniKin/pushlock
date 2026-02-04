@@ -158,9 +158,11 @@ class _CameraPageState extends State<CameraPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('🎉 Great Job!'),
+        backgroundColor: Color.fromARGB(255, 56, 56, 56),
+        title: const Text('🎉 Great Job!', style: TextStyle(color:Colors.white)),
         content: Text(
           'You completed $pushUpCount push-ups!\n\n${widget.appName} is now unlocked.',
+          style: TextStyle(color: Colors.white, fontSize: 14),
         ),
         actions: [
           TextButton(

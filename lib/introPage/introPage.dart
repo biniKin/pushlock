@@ -40,7 +40,7 @@ class Intropage extends StatelessWidget {
           Positioned(
             left: 24,
             right: 24,
-            bottom: 40,
+            bottom: 160,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -50,7 +50,7 @@ class Intropage extends StatelessWidget {
                   "Do push-ups to unlock apps.",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 28,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                     height: 1.2,
                   ),
@@ -63,7 +63,7 @@ class Intropage extends StatelessWidget {
                   "Protect your screen time by locking apps and do push-ups to unlock them.",
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 16,
+                    fontSize: 14,
                     height: 1.4,
                   ),
                 ),

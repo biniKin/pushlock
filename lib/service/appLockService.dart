@@ -4,6 +4,24 @@ import 'package:pushlock/model/locked_app.dart';
 class AppLockService {
   static const platform = MethodChannel("com.example.pushlock/app_lock");
 
+  Future<bool> canDrawOverlay() async{
+    final result = await platform.invokeMethod("canDrawOverlat");
+    return result ?? false;
+  }
+
+  Future<bool> hasUsageAccess() async{
+    final res = await platform.invokeMethod("hasUsageAccess");
+    return res ?? false;
+  }
+
+  Future<void> navigateToOverlaySettings() async{
+    await platform.invokeMethod("requestOverlayPermission");
+  }
+
+  Future<void> navigateToUsageSettings() async{
+    await platform.invokeMethod("requestUsagePermission");
+  }
+
   // addLockedApp: sends packageName, appName, timeoutSeconds, isStrict. return success/failure
   Future<bool> addLockedApp(LockedApp app) async {
     try {

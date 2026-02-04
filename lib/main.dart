@@ -13,6 +13,7 @@ import 'package:pushlock/homePage/bloc/homePage_bloc.dart';
 import 'package:pushlock/homePage/homePage.dart';
 import 'package:pushlock/introPage/introPage.dart';
 import 'package:pushlock/overlayPage/overlay_lock_page.dart';
+import 'package:pushlock/permissionsPage/permissions_page.dart';
 import 'package:pushlock/repositories/app_stats_repository.dart';
 import 'package:pushlock/repositories/installed_apps_repository.dart';
 import 'package:pushlock/repositories/locked_apps_repository.dart';
@@ -201,7 +202,7 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: navigatorKey,
       initialRoute: _showIntro ? '/intro' : '/',
       routes: {
-        '/': (context) => const Homepage(),
+        '/': (context) => const PermissionsPage(),
         '/intro': (context) => Intropage(introPageFlag: widget.introPageFlag),
         '/unlock': (context) => const Unlockpage(),
       },
