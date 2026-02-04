@@ -29,7 +29,7 @@ class _AppspageState extends State<Appspage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     context.read<AppsBloc>().add(LoadApps());
 
     // Listen to tab changes
@@ -52,7 +52,7 @@ class _AppspageState extends State<Appspage>
     super.didChangeAppLifecycleState(state);
     // Refresh data when app comes to foreground
     if (state == AppLifecycleState.resumed) {
-      context.read<AppsBloc>().add(RefreshApps());
+      //context.read<AppsBloc>().add(RefreshApps());
     }
   }
 
@@ -63,12 +63,16 @@ class _AppspageState extends State<Appspage>
         category = null; // All
         break;
       case 1:
+        category = "locked";
+        break;
+        
+      case 2:
         category = AppCategory.social.name;
         break;
-      case 2:
+      case 3:
         category = AppCategory.game.name;
         break;
-      case 3:
+      case 4:
         category = AppCategory.productivity.name;
         break;
     }
@@ -101,7 +105,7 @@ class _AppspageState extends State<Appspage>
             baseColor: Colors.grey.shade800,
             highlightColor: Colors.grey.shade700,
             child: ListView.builder(
-              itemCount: 6,
+              itemCount: 15,
               itemBuilder: (context, index) {
                 return const AppsSkeletonContainer();
               },
@@ -213,36 +217,44 @@ class _AppspageState extends State<Appspage>
   }
 
   Widget _buildTabBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 16),
-      decoration: BoxDecoration(
-        //color: Colors.grey[800],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicatorAnimation: TabIndicatorAnimation.linear,
-        // indicator: BoxDecoration(
-
-        //   color: Colors.grey[700],
-        //   borderRadius: BorderRadius.circular(8),
-        // ),
-        isScrollable: true,
-        
-        labelColor: const Color.fromARGB(255, 120, 92, 210),
-        unselectedLabelColor: Colors.grey[400],
-        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.normal,
+    return Align(
+      alignment: Alignment.center,
+      child: Container(
+        alignment: Alignment.center,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 5),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey[800]!.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8),
         ),
-        dividerHeight: 0,
-        tabs: const [
-          Tab(text: "All"),
-          Tab(text: "Social"),
-          Tab(text: "Games"),
-          Tab(text: "Productivity"),
-        ],
+        child: TabBar(
+          controller: _tabController,
+          indicatorAnimation: TabIndicatorAnimation.linear,
+        
+          isScrollable: false,
+          // Remove extra start padding and control label spacing
+          padding: EdgeInsets.zero,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 1),
+          indicatorPadding: EdgeInsets.zero,
+          indicatorSize: TabBarIndicatorSize.label,
+        
+          labelColor: const Color.fromARGB(255, 120, 92, 210),
+          unselectedLabelColor: Colors.grey[400],
+          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.normal,
+          ),
+          dividerHeight: 0,
+          tabs: const [
+            Tab(text: "All", icon: Icon(Icons.apps)),
+            Tab(text: "Locked apps", icon: Icon(Icons.apps)),
+            Tab(text: "Social", icon: Icon(Icons.people)),
+            Tab(text: "Games",  icon: Icon(Icons.gamepad)),
+            Tab(text: "Productivity", icon: Icon(Icons.work)),
+          ],
+        ),
       ),
     );
   }

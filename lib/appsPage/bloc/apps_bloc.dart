@@ -202,12 +202,17 @@ class AppsBloc extends Bloc<AppsEvent, AppsState> {
       final currentState = state as AppsLoaded;
 
       // Filter apps by category
-      final filteredApps = event.appCategory == null
-          ? currentState
-                .apps // Show all
-          : currentState.apps
+      final filteredApps; 
+      if(event.appCategory == null){
+        filteredApps = currentState.apps;
+      } else if(event.appCategory == "locked"){
+        filteredApps = currentState.apps.where((app) => app.isLocked).toList();
+      } else{
+        filteredApps = currentState.apps
                 .where((app) => app.appCategory == event.appCategory)
                 .toList();
+      }
+          
 
       print("filtred apps: ${filteredApps.length}");
 
