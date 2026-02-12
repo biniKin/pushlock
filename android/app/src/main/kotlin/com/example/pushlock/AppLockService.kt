@@ -52,6 +52,9 @@ class AppLockService : Service() {
     private val prefs by lazy {
         getSharedPreferences("app_lock_tracking", Context.MODE_PRIVATE)
     }
+
+    // Package name of this app/service to avoid tracking itself
+    private val selfPackage by lazy { applicationContext.packageName }
     
     companion object {
         private const val PREF_LAST_FOREGROUND_APP = "last_foreground_app"
@@ -61,14 +64,17 @@ class AppLockService : Service() {
     // Save current tracking state to SharedPreferences
     private fun saveTrackingState() {
         val currentApp = lastForegroundApp ?: return
+        // Do not save state for our own package
+        if (currentApp == selfPackage) return
+
         val openTime = appLastOpenTime[currentApp] ?: return
-        
+
         prefs.edit().apply {
             putString(PREF_LAST_FOREGROUND_APP, currentApp)
             putLong(PREF_LAST_OPEN_TIME, openTime)
             apply()
         }
-        
+
         Log.d("APP_LOCK", "Saved tracking state: app=$currentApp, time=$openTime")
         println("========== APP_LOCK: Saved tracking state to SharedPreferences ==========")
     }
@@ -326,64 +332,73 @@ class AppLockService : Service() {
                     }
                     
                     // Start tracking time for the new app (ALL apps, not just locked ones)
-                    if (foregroundApp != null) {
-                        // Start tracking time for ALL apps
-                        appLastOpenTime[foregroundApp] = System.currentTimeMillis()
+                    if (foregroundApp != null ) {
+                        // If the new foreground is our own app, do not track time for it
+                        if (foregroundApp != selfPackage) {
+                            appLastOpenTime[foregroundApp] = System.currentTimeMillis()
+                        }
+
+                        // Always update lastForegroundApp
                         lastForegroundApp = foregroundApp
-                        
+
                         // Save tracking state immediately on app switch
                         saveTrackingState()
                         println("APP_LOCK: Saved state immediately after app switch")
-                        
+
                         println("APP_LOCK: Started tracking time for $foregroundApp")
-                        
-                        serviceScope.launch {
-                            val currentRepo = lockedAppRepo
-                            if (currentRepo == null) {
-                                Log.e("APP_LOCK", "LockedAppRepo is null")
-                                println("APP_LOCK ERROR: LockedAppRepo is null")
-                                return@launch
-                            }
-                            
-                            val lockedApp = currentRepo.getLockedApp(foregroundApp)
-                            val name = getAppName(foregroundApp)
-                            
-                            if (lockedApp != null) {
-                                println("APP_LOCK: Found locked app: $foregroundApp")
-                                // Check if app is already locked (overlay showing)
-                                if (storage.isLocked(foregroundApp)) {
-                                    Log.d("APP_LOCK", "App $foregroundApp is locked, showing overlay")
-                                    println("APP_LOCK: App $foregroundApp is ALREADY LOCKED, showing overlay")
-                                    overlayUi?.showOverlay(foregroundApp, name)
-                                } else {
-                                    // Get accumulated time and timeout
-                                    val accumulatedSeconds = storage.getAccumulatedSeconds(foregroundApp)
-                                    val timeoutSeconds = lockedApp.timeoutSecond
-                                    val remainingSeconds = timeoutSeconds - accumulatedSeconds
-                                    
-                                    Log.d("APP_LOCK", "Locked app detected: $foregroundApp, accumulated: ${accumulatedSeconds}s, timeout: ${timeoutSeconds}s, remaining: ${remainingSeconds}s")
-                                    println("========== APP_LOCK: Locked app detected ==========")
-                                    println("APP_LOCK: Package: $foregroundApp")
-                                    println("APP_LOCK: Accumulated: ${accumulatedSeconds}s")
-                                    println("APP_LOCK: Timeout: ${timeoutSeconds}s")
-                                    println("APP_LOCK: Remaining: ${remainingSeconds}s")
-                                    
-                                    if (remainingSeconds <= 0) {
-                                        // Time's up, lock the app
-                                        storage.setLocked(foregroundApp, true)
-                                        overlayUi?.showOverlay(foregroundApp, name)
-                                        Log.d("APP_LOCK", "Time's up for $foregroundApp, showing overlay")
-                                        println("========== APP_LOCK: TIME'S UP! Showing overlay ==========")
-                                    } else {
-                                        // Update timestamp for locked app tracking
-                                        storage.saveLastTimestamp(foregroundApp, System.currentTimeMillis())
-                                        println("APP_LOCK: Tracking locked app time for $foregroundApp")
-                                    }
+
+                        // If it's our own package, remove any overlay and skip locked-app checks
+                        if (foregroundApp == selfPackage) {
+                            overlayUi?.removeOverlay()
+                        } else {
+                            serviceScope.launch {
+                                val currentRepo = lockedAppRepo
+                                if (currentRepo == null) {
+                                    Log.e("APP_LOCK", "LockedAppRepo is null")
+                                    println("APP_LOCK ERROR: LockedAppRepo is null")
+                                    return@launch
                                 }
-                            } else {
-                                println("APP_LOCK: App $foregroundApp is NOT locked - tracking usage only")
-                                // Not locked, remove overlay if showing
-                                overlayUi?.removeOverlay()
+
+                                val lockedApp = currentRepo.getLockedApp(foregroundApp)
+                                val name = getAppName(foregroundApp)
+
+                                if (lockedApp != null) {
+                                    println("APP_LOCK: Found locked app: $foregroundApp")
+                                    // Check if app is already locked (overlay showing)
+                                    if (storage.isLocked(foregroundApp)) {
+                                        Log.d("APP_LOCK", "App $foregroundApp is locked, showing overlay")
+                                        println("APP_LOCK: App $foregroundApp is ALREADY LOCKED, showing overlay")
+                                        overlayUi?.showOverlay(foregroundApp, name)
+                                    } else {
+                                        // Get accumulated time and timeout
+                                        val accumulatedSeconds = storage.getAccumulatedSeconds(foregroundApp)
+                                        val timeoutSeconds = lockedApp.timeoutSecond
+                                        val remainingSeconds = timeoutSeconds - accumulatedSeconds
+
+                                        Log.d("APP_LOCK", "Locked app detected: $foregroundApp, accumulated: ${accumulatedSeconds}s, timeout: ${timeoutSeconds}s, remaining: ${remainingSeconds}s")
+                                        println("========== APP_LOCK: Locked app detected ==========")
+                                        println("APP_LOCK: Package: $foregroundApp")
+                                        println("APP_LOCK: Accumulated: ${accumulatedSeconds}s")
+                                        println("APP_LOCK: Timeout: ${timeoutSeconds}s")
+                                        println("APP_LOCK: Remaining: ${remainingSeconds}s")
+
+                                        if (remainingSeconds <= 0) {
+                                            // Time's up, lock the app
+                                            storage.setLocked(foregroundApp, true)
+                                            overlayUi?.showOverlay(foregroundApp, name)
+                                            Log.d("APP_LOCK", "Time's up for $foregroundApp, showing overlay")
+                                            println("========== APP_LOCK: TIME'S UP! Showing overlay ==========")
+                                        } else {
+                                            // Update timestamp for locked app tracking
+                                            storage.saveLastTimestamp(foregroundApp, System.currentTimeMillis())
+                                            println("APP_LOCK: Tracking locked app time for $foregroundApp")
+                                        }
+                                    }
+                                } else {
+                                    println("APP_LOCK: App $foregroundApp is NOT locked - tracking usage only")
+                                    // Not locked, remove overlay if showing
+                                    overlayUi?.removeOverlay()
+                                }
                             }
                         }
                     } else {
@@ -393,6 +408,11 @@ class AppLockService : Service() {
                     }
                 } else {
                     // Same app, check if we need to update accumulated time
+                    // If it's our own app, skip timeout checks but continue monitoring
+                    if (foregroundApp == selfPackage) {
+                        handler.postDelayed(this, 500)
+                        return
+                    }
                     foregroundApp?.let { app ->
                         serviceScope.launch {
                             val currentRepo = lockedAppRepo
@@ -441,6 +461,8 @@ class AppLockService : Service() {
     }
     
     private fun saveAccumulatedTime(packageName: String) {
+        // Do not record usage for our own app
+        if (packageName == selfPackage) return
         val storage = timerStorage ?: return
         val repo = appStatRepo ?: return
         val lastOpenTime = appLastOpenTime[packageName] ?: return
