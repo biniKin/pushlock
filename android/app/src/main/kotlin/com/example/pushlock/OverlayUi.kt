@@ -12,6 +12,11 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.Button
 import android.widget.TextView
 
+import android.provider.Settings 
+import android.view.KeyEvent 
+import android.view.ContextThemeWrapper
+
+
 
 class OverlayUi(private val context: Context) {
     private var wm: WindowManager? = null
@@ -37,8 +42,9 @@ class OverlayUi(private val context: Context) {
         }
 
         wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
-        val inflater = LayoutInflater.from(context)
+        
+        val themeWrapper = ContextThemeWrapper(context, R.style.AppTheme)
+        val inflater = LayoutInflater.from(themeWrapper)
         val view = inflater.inflate(R.layout.overlay_lock, null)
 
         view.findViewById<TextView>(R.id.txt_message)?.text =
