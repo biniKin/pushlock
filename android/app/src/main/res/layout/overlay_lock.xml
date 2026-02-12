@@ -1,46 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1A1A2E"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="32dp">
+    android:background="#E6000000">
 
-    <ImageView
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:src="@android:drawable/ic_lock_idle_lock"
-        android:tint="#FFFFFF"
-        android:layout_marginBottom="24dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="App Locked!"
-        android:textColor="#FFFFFF"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="12dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="This app is locked for your security"
-        android:textColor="#B0B0B0"
-        android:textSize="16sp"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:gravity="center"
-        android:layout_marginBottom="40dp"/>
+        android:orientation="vertical"
+        android:padding="32dp">
 
-    <Button
-        android:id="@+id/btn_unlock"
-        android:layout_width="200dp"
-        android:layout_height="56dp"
-        android:text="Unlock"
-        android:textColor="#1A1A2E"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:background="@android:drawable/button_onoff_indicator_on"
-        android:backgroundTint="#FFFFFF"/>
+        <!-- Lock Icon -->
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@android:drawable/ic_lock_idle_lock"
+            android:tint="@android:color/white"
+            android:layout_marginBottom="8dp" />
 
-</LinearLayout>
+        <!-- App Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PushLock"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Big Space -->
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="100dp" />
+
+        <!-- Main Message -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Time to do push ups!"
+            android:textColor="@android:color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Dynamic App Name Message -->
+        <TextView
+            android:id="@+id/txt_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="You should do push ups to unlock Instagram."
+            android:textColor="#B3FFFFFF"
+            android:textSize="18sp"
+            android:gravity="center"
+            android:layout_marginBottom="30dp" />
+
+        <!-- Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_start_pushups"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Start Push-ups"
+            android:textSize="18sp"
+            android:paddingStart="40dp"
+            android:paddingEnd="40dp"
+            android:paddingTop="15dp"
+            android:paddingBottom="15dp"
+            app:cornerRadius="16dp"
+            app:backgroundTint="@android:color/white"
+            android:textColor="#000000" />
+
+    </LinearLayout>
+
+</FrameLayout>
