@@ -24,7 +24,7 @@ class CameraPage extends StatefulWidget {
 
 class _CameraPageState extends State<CameraPage> {
   static const int confirmFrames = 3;
-  static const int calibrationFrames = 15;
+  static const int calibrationFrames = 5;
   static const platform = MethodChannel('overlay_channel');
 
   late int pushupcountforapp;
@@ -196,6 +196,7 @@ class _CameraPageState extends State<CameraPage> {
 
     calibrationShoulderY.add(shoulderY);
     calibrationElbowAngles.add(elbowAngle);
+    setState((){});
 
     debugPrint(
       "📏 Calibrating... ${calibrationShoulderY.length}/$calibrationFrames",

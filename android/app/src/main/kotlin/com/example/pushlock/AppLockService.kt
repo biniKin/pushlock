@@ -44,6 +44,124 @@ class AppLockService : Service() {
     // Flag to track if receiver is registered
     private var isReceiverRegistered = false
     
+    // Track last backup save time
+    private var lastBackupSaveTime = 0L
+    private val BACKUP_SAVE_INTERVAL = 30000L // 30 seconds
+    
+    // SharedPreferences for persisting tracking state
+    private val prefs by lazy {
+        getSharedPreferences("app_lock_tracking", Context.MODE_PRIVATE)
+    }
+    
+    companion object {
+        private const val PREF_LAST_FOREGROUND_APP = "last_foreground_app"
+        private const val PREF_LAST_OPEN_TIME = "last_open_time"
+    }
+    
+    // Save current tracking state to SharedPreferences
+    private fun saveTrackingState() {
+        val currentApp = lastForegroundApp ?: return
+        val openTime = appLastOpenTime[currentApp] ?: return
+        
+        prefs.edit().apply {
+            putString(PREF_LAST_FOREGROUND_APP, currentApp)
+            putLong(PREF_LAST_OPEN_TIME, openTime)
+            apply()
+        }
+        
+        Log.d("APP_LOCK", "Saved tracking state: app=$currentApp, time=$openTime")
+        println("========== APP_LOCK: Saved tracking state to SharedPreferences ==========")
+    }
+    
+    // Restore tracking state from SharedPreferences
+    private fun restoreTrackingState() {
+        val savedApp = prefs.getString(PREF_LAST_FOREGROUND_APP, null)
+        val savedTime = prefs.getLong(PREF_LAST_OPEN_TIME, 0L)
+        
+        if (savedApp != null && savedTime > 0L) {
+            // Check if saved app is still in foreground
+            val currentForegroundApp = detector?.getForegroundApp()
+            
+            if (currentForegroundApp == savedApp) {
+                // Same app still in foreground, restore tracking
+                lastForegroundApp = savedApp
+                appLastOpenTime[savedApp] = savedTime
+                Log.d("APP_LOCK", "Restored tracking state: app=$savedApp, time=$savedTime")
+                println("========== APP_LOCK: Restored tracking state - app still in foreground ==========")
+            } else {
+                // Different app now, save the time for the old app
+                val elapsedSeconds = ((System.currentTimeMillis() - savedTime) / 1000).toInt()
+                if (elapsedSeconds > 0) {
+                    saveUsageTimeToDatabase(savedApp, elapsedSeconds)
+                    Log.d("APP_LOCK", "Saved missed time for $savedApp: ${elapsedSeconds}s")
+                    println("========== APP_LOCK: Saved missed time during service restart ==========")
+                }
+                
+                // Start tracking the current foreground app
+                if (currentForegroundApp != null) {
+                    lastForegroundApp = currentForegroundApp
+                    appLastOpenTime[currentForegroundApp] = System.currentTimeMillis()
+                    Log.d("APP_LOCK", "Started tracking new foreground app: $currentForegroundApp")
+                    println("========== APP_LOCK: Started tracking current foreground app after restart ==========")
+                }
+            }
+            
+            // Clear saved state
+            prefs.edit().clear().apply()
+        } else {
+            // No saved state, start tracking current foreground app
+            val currentForegroundApp = detector?.getForegroundApp()
+            if (currentForegroundApp != null) {
+                lastForegroundApp = currentForegroundApp
+                appLastOpenTime[currentForegroundApp] = System.currentTimeMillis()
+                Log.d("APP_LOCK", "No saved state, started tracking current app: $currentForegroundApp")
+                println("========== APP_LOCK: No saved state - started tracking current foreground app ==========")
+            }
+        }
+    }
+    
+    // Helper method to save usage time to database
+    private fun saveUsageTimeToDatabase(packageName: String, elapsedSeconds: Int) {
+        val repo = appStatRepo ?: return
+        val storage = timerStorage ?: return
+        val date = getTodayDate()
+        
+        // Update accumulated time for locked apps
+        if (!storage.isLocked(packageName)) {
+            val previousAccumulated = storage.getAccumulatedSeconds(packageName)
+            val newAccumulated = previousAccumulated + elapsedSeconds
+            storage.saveAccumulatedSeconds(packageName, newAccumulated)
+            Log.d("APP_LOCK", "Updated accumulated time for $packageName: ${newAccumulated}s")
+        }
+        
+        // Save to database
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val existing = repo.appStatForDay(packageName, date)
+                
+                if (existing == null) {
+                    repo.upsert(
+                        AppStatEntity(
+                            packageName = packageName,
+                            appName = getAppName(packageName),
+                            date = date,
+                            dailyUsageTime = elapsedSeconds.toLong()
+                        )
+                    )
+                } else {
+                    repo.upsert(
+                        existing.copy(
+                            dailyUsageTime = existing.dailyUsageTime + elapsedSeconds
+                        )
+                    )
+                }
+                Log.d("APP_LOCK", "Saved usage time to database: $packageName, ${elapsedSeconds}s")
+            } catch (e: Exception) {
+                Log.e("APP_LOCK", "Error saving usage time: ${e.message}")
+            }
+        }
+    }
+    
     // BroadcastReceiver to handle unlock commands
     private val unlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -116,6 +234,9 @@ class AppLockService : Service() {
         super.onTaskRemoved(intent)
         Log.d("APP_LOCK", "Task removed, restarting service")
         
+        // Save tracking state before service is killed
+        saveTrackingState()
+        
         // Restart the service when app is swiped away
         val restartIntent = Intent(applicationContext, AppLockService::class.java)
         val pendingIntent = PendingIntent.getService(
@@ -136,6 +257,8 @@ class AppLockService : Service() {
     private fun initializeService() {
         Log.d("APP_LOCK", "Initializing service")
         println("========== APP_LOCK: Initializing service ==========")
+        
+        var shouldRestoreState = false
         
         // Initialize only if not already initialized
         if (detector == null) {
@@ -164,6 +287,14 @@ class AppLockService : Service() {
             // LockRepository.lockApp(this, "com.instagram.android")
             Log.d("APP_LOCK", "LockedAppRepo initialized")
             println("APP_LOCK: LockedAppRepo initialized")
+            shouldRestoreState = true
+        }
+        
+        // ALWAYS restore tracking state if we have no current tracking
+        if (shouldRestoreState || (lastForegroundApp == null && appLastOpenTime.isEmpty())) {
+            Log.d("APP_LOCK", "Restoring tracking state (shouldRestore=$shouldRestoreState, lastApp=$lastForegroundApp, mapSize=${appLastOpenTime.size})")
+            println("========== APP_LOCK: Attempting to restore tracking state ==========")
+            restoreTrackingState()
         }
     }
 
@@ -198,6 +329,12 @@ class AppLockService : Service() {
                     if (foregroundApp != null) {
                         // Start tracking time for ALL apps
                         appLastOpenTime[foregroundApp] = System.currentTimeMillis()
+                        lastForegroundApp = foregroundApp
+                        
+                        // Save tracking state immediately on app switch
+                        saveTrackingState()
+                        println("APP_LOCK: Saved state immediately after app switch")
+                        
                         println("APP_LOCK: Started tracking time for $foregroundApp")
                         
                         serviceScope.launch {
@@ -252,10 +389,8 @@ class AppLockService : Service() {
                     } else {
                         // No app in foreground
                         overlayUi?.removeOverlay()
+                        lastForegroundApp = null
                     }
-                    
-                    // Update last app
-                    lastForegroundApp = foregroundApp
                 } else {
                     // Same app, check if we need to update accumulated time
                     foregroundApp?.let { app ->
@@ -290,6 +425,13 @@ class AppLockService : Service() {
                             }
                         }
                     }
+                }
+                
+                // Periodic backup save (every 30 seconds)
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastBackupSaveTime >= BACKUP_SAVE_INTERVAL) {
+                    saveTrackingState()
+                    lastBackupSaveTime = currentTime
                 }
                 
                 // Poll every 500ms for better accuracy
@@ -427,6 +569,9 @@ class AppLockService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d("APP_LOCK", "onDestroy called")
+        
+        // Save tracking state before service is destroyed
+        saveTrackingState()
         
         // Unregister broadcast receiver
         if (isReceiverRegistered) {

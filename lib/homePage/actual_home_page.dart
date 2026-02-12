@@ -11,6 +11,7 @@ import 'package:pushlock/homePage/widgets/chart_container.dart';
 import 'package:pushlock/homePage/widgets/home_skeleton_page.dart';
 import 'package:pushlock/homePage/widgets/summary_container.dart';
 import 'package:pushlock/homePage/widgets/unlock_app_dialog.dart';
+import 'package:pushlock/service/appLockService.dart';
 
 class ActualHomePage extends StatefulWidget {
   const ActualHomePage({super.key});
@@ -21,11 +22,69 @@ class ActualHomePage extends StatefulWidget {
 
 class _ActualHomePageState extends State<ActualHomePage>
     with WidgetsBindingObserver {
+  final AppLockService _appLockService = AppLockService();
+  bool _batteryOptimizationChecked = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     context.read<HomepageBloc>().add(LoadHomepageData());
+    _checkBatteryOptimization();
+  }
+
+  Future<void> _checkBatteryOptimization() async {
+    if (_batteryOptimizationChecked) return;
+
+    // Wait a bit for the page to load
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final hasOptimization = await _appLockService.hasBatteryOptimization();
+
+    if (!hasOptimization && mounted) {
+      _batteryOptimizationChecked = true;
+      _showBatteryOptimizationDialog();
+    }
+  }
+
+  void _showBatteryOptimizationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color.fromARGB(255, 49, 49, 49),
+        title: const Row(
+          children: [
+            Icon(Icons.battery_alert, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Battery Optimization', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: const Text(
+          'PushLock needs to disable battery optimization to work reliably in the background.\n\n'
+          'Without this, the app may stop monitoring and locking apps when your device is idle.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Later', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _appLockService.navigateToBatterySettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurpleAccent,
+            ),
+            child: const Text('Allow', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -40,6 +99,8 @@ class _ActualHomePageState extends State<ActualHomePage>
     // Refresh data when app comes to foreground
     if (state == AppLifecycleState.resumed) {
       context.read<HomepageBloc>().add(RefreshHomepageData());
+      // Check battery optimization again when returning from settings
+      _checkBatteryOptimization();
     }
   }
 

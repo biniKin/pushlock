@@ -70,6 +70,7 @@
         <service
             android:name=".AppLockService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse" />
 
 
