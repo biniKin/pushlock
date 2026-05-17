@@ -11,6 +11,168 @@ class Pushupdetection {
   static const double CRITICAL_CONFIDENCE = 0.8;
   static const double NORMAL_CONFIDENCE = 0.7;
 
+  // ────────────────────────────────────────────────
+  // Coordinate transformation helpers
+  // ────────────────────────────────────────────────
+
+  double translateX(
+    double x,
+    InputImageRotation rotation,
+    Size canvasSize,
+    Size imageSize,
+    CameraLensDirection direction,
+  ) {
+    double translated = x;
+
+    switch (rotation) {
+      case InputImageRotation.rotation0deg:
+        translated = x * canvasSize.width / imageSize.width;
+        break;
+      case InputImageRotation.rotation90deg:
+        translated = x * canvasSize.width / imageSize.height;
+        break;
+      case InputImageRotation.rotation180deg:
+        translated =
+            canvasSize.width - (x * canvasSize.width / imageSize.width);
+        break;
+      case InputImageRotation.rotation270deg:
+        translated =
+            canvasSize.width - (x * canvasSize.width / imageSize.height);
+        break;
+    }
+
+    // Mirror for front camera (user's right appears left in preview)
+    if (direction == CameraLensDirection.front) {
+      translated = canvasSize.width - translated;
+    }
+
+    return translated;
+  }
+
+  double translateY(
+    double y,
+    InputImageRotation rotation,
+    Size canvasSize,
+    Size imageSize,
+    CameraLensDirection direction,
+  ) {
+    double translated = y;
+
+    switch (rotation) {
+      case InputImageRotation.rotation0deg:
+        translated = y * canvasSize.height / imageSize.height;
+        break;
+      case InputImageRotation.rotation90deg:
+        translated =
+            canvasSize.height - (y * canvasSize.height / imageSize.width);
+        break;
+      case InputImageRotation.rotation180deg:
+        translated =
+            canvasSize.height - (y * canvasSize.height / imageSize.height);
+        break;
+      case InputImageRotation.rotation270deg:
+        translated = y * canvasSize.height / imageSize.width;
+        break;
+    }
+
+    return translated;
+  }
+
+  PoseLandmark? getTransformedLandmark(
+    Pose pose,
+    PoseLandmarkType type,
+    InputImageRotation rotation,
+    Size canvasSize,
+    Size imageSize,
+    CameraLensDirection direction,
+  ) {
+    final lm = pose.landmarks[type];
+    if (lm == null) return null;
+
+    final tx = translateX(lm.x, rotation, canvasSize, imageSize, direction);
+    final ty = translateY(lm.y, rotation, canvasSize, imageSize, direction);
+
+    return PoseLandmark(
+      type: lm.type,
+      likelihood: lm.likelihood,
+      x: tx,
+      y: ty,
+      z: lm.z,
+    );
+  }
+
+  // Updated – uses transformed coordinates
+  bool isBodyHorizontal(
+    Pose pose,
+    InputImageRotation rotation,
+    Size canvasSize,
+    Size imageSize,
+    CameraLensDirection direction, {
+    double tolerance = 25.0,
+  }) {
+    final shoulder = getTransformedLandmark(
+      pose,
+      PoseLandmarkType.rightShoulder,
+      rotation,
+      canvasSize,
+      imageSize,
+      direction,
+    );
+    final hip = getTransformedLandmark(
+      pose,
+      PoseLandmarkType.rightHip,
+      rotation,
+      canvasSize,
+      imageSize,
+      direction,
+    );
+
+    if (shoulder == null || hip == null) return false;
+
+    final dx = hip.x - shoulder.x;
+    final dy = hip.y - shoulder.y;
+
+    final angle = (atan2(dy, dx) * 180 / pi).abs();
+    return angle < tolerance || angle > (180 - tolerance);
+  }
+
+  // Updated – relative threshold
+  bool wristsUnderShoulders(
+    Pose pose,
+    InputImageRotation rotation,
+    Size canvasSize,
+    Size imageSize,
+    CameraLensDirection direction,
+    double? bodySizeRef,
+  ) {
+    final shoulder = getTransformedLandmark(
+      pose,
+      PoseLandmarkType.rightShoulder,
+      rotation,
+      canvasSize,
+      imageSize,
+      direction,
+    );
+    final wrist = getTransformedLandmark(
+      pose,
+      PoseLandmarkType.rightWrist,
+      rotation,
+      canvasSize,
+      imageSize,
+      direction,
+    );
+
+    if (shoulder == null || wrist == null) return false;
+
+    final dx = (shoulder.x - wrist.x).abs();
+
+    final threshold = bodySizeRef != null
+        ? bodySizeRef * 0.18
+        : canvasSize.width * 0.10;
+
+    return dx < threshold;
+  }
+
   // Get average shoulder Y position (normalized to frame height)
   double? getShoulderY(Pose pose, double frameHeight) {
     final leftShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
@@ -154,17 +316,96 @@ class Pushupdetection {
     return hasReliableArm(pose, true) && hasReliableArm(pose, false);
   }
 
-  double calculateTorsoAngle(Pose pose) {
-    final shoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
-    final hip = pose.landmarks[PoseLandmarkType.rightHip];
+  // Check if user is facing camera (front view, not profile)
+  bool isFacingCamera(Pose pose) {
+    final leftShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
+    final rightShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
+    final leftHip = pose.landmarks[PoseLandmarkType.leftHip];
+    final rightHip = pose.landmarks[PoseLandmarkType.rightHip];
+    final nose = pose.landmarks[PoseLandmarkType.nose];
 
-    if (shoulder == null || hip == null) return 90;
+    if (leftShoulder == null ||
+        rightShoulder == null ||
+        leftHip == null ||
+        rightHip == null ||
+        nose == null) {
+      return false;
+    }
 
-    final dx = hip.x - shoulder.x;
-    final dy = hip.y - shoulder.y;
+    // Check confidence
+    if (leftShoulder.likelihood < NORMAL_CONFIDENCE ||
+        rightShoulder.likelihood < NORMAL_CONFIDENCE ||
+        nose.likelihood < NORMAL_CONFIDENCE) {
+      return false;
+    }
 
-    return (atan2(dy, dx) * 180 / pi).abs();
+    // 1. Check shoulder width (both shoulders should be visible and separated)
+    final shoulderWidth = (leftShoulder.x - rightShoulder.x).abs();
+    final shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+
+    // Shoulders should be reasonably wide apart (not profile view)
+    // In profile view, shoulders overlap or are very close
+    final bodySize = getBodySizeReference(pose) ?? 100;
+    if (shoulderWidth < bodySize * 0.3) {
+      return false; // Too narrow, likely profile view
+    }
+
+    // 2. Check nose position relative to shoulders
+    // Nose should be roughly centered between shoulders (front view)
+    // In profile view, nose is off to one side
+    final noseOffset = (nose.x - shoulderMidX).abs();
+    if (noseOffset > shoulderWidth * 0.4) {
+      return false; // Nose too far from center, likely profile
+    }
+
+    // 3. Check hip width (both hips should be visible)
+    final hipWidth = (leftHip.x - rightHip.x).abs();
+    if (hipWidth < bodySize * 0.25) {
+      return false; // Hips too narrow, likely profile
+    }
+
+    return true;
   }
+
+  //   bool isBodyHorizontal(
+  //   Pose pose,
+  //   InputImageRotation rotation,
+  //   Size canvas,
+  //   Size image,
+  //   CameraLensDirection dir,
+  //   {double tolerance = 25}) {
+  //   final rShoulder = getTransformedLandmark(pose, PoseLandmarkType.rightShoulder, rotation, canvas, image, dir);
+  //   final rHip = getTransformedLandmark(pose, PoseLandmarkType.rightHip, rotation, canvas, image, dir);
+
+  //   if (rShoulder == null || rHip == null) return false;
+
+  //   final dx = rHip.x - rShoulder.x;
+  //   final dy = rHip.y - rShoulder.y;
+
+  //   final angle = (math.atan2(dy, dx) * 180 / math.pi).abs();
+  //   return angle < tolerance || angle > (180 - tolerance);
+  // }
+
+  // bool wristsUnderShoulders(
+  //   Pose pose,
+  //   InputImageRotation rot,
+  //   Size canvas,
+  //   Size image,
+  //   CameraLensDirection dir,
+  //   double? bodySizeRef,
+  // ) {
+  //   final rShoulder = getTransformedLandmark(pose, PoseLandmarkType.rightShoulder, rot, canvas, image, dir);
+  //   final rWrist = getTransformedLandmark(pose, PoseLandmarkType.rightWrist, rot, canvas, image, dir);
+
+  //   if (rShoulder == null || rWrist == null) return false;
+
+  //   final dx = (rShoulder.x - rWrist.x).abs();
+
+  //   // Relative threshold – much better than 40 pixels
+  //   final threshold = bodySizeRef != null ? bodySizeRef * 0.15 : canvas.width * 0.08;
+
+  //   return dx < threshold;
+  // }
 
   InputImage inputImageFromCameraImage(
     CameraImage image,

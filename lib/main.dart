@@ -23,73 +23,73 @@ import 'package:shared_preferences/shared_preferences.dart';
 late List<CameraDescription> cameras;
 
 // Separate entry point for overlay - runs in separate FlutterEngine
-@pragma("vm:entry-point")
-void overlayMain() {
-  WidgetsFlutterBinding.ensureInitialized();
-  //await Hive.initFlutter();
+// @pragma("vm:entry-point")
+// void overlayMain() {
+//   WidgetsFlutterBinding.ensureInitialized();
+//   //await Hive.initFlutter();
 
-  //await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+//   //await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  runApp(const OverlayApp());
-}
+//   runApp(const OverlayApp());
+// }
 
-class OverlayApp extends StatefulWidget {
-  const OverlayApp({super.key});
+// class OverlayApp extends StatefulWidget {
+//   const OverlayApp({super.key});
 
-  @override
-  State<OverlayApp> createState() => _OverlayAppState();
-}
+//   @override
+//   State<OverlayApp> createState() => _OverlayAppState();
+// }
 
-class _OverlayAppState extends State<OverlayApp> {
-  static const platform = MethodChannel('overlay_channel');
-  String packageName = '';
-  String appName = '';
-  bool isDataReceived = false;
+// class _OverlayAppState extends State<OverlayApp> {
+//   static const platform = MethodChannel('overlay_channel');
+//   String packageName = '';
+//   String appName = '';
+//   bool isDataReceived = false;
 
-  @override
-  void initState() {
-    super.initState();
+//   @override
+//   void initState() {
+//     super.initState();
 
-    debugPrint("OVERLAY_APP: initState called");
+//     debugPrint("OVERLAY_APP: initState called");
 
-    // Listen for overlay data from Kotlin
-    platform.setMethodCallHandler((call) async {
-      debugPrint("OVERLAY_APP: Received method call: ${call.method}");
-      if (call.method == 'showOverlay') {
-        final pkg = call.arguments['packageName'] ?? '';
-        final name = call.arguments['appName'] ?? '';
-        debugPrint("OVERLAY_APP: Received data - pkg=$pkg, name=$name");
+//     // Listen for overlay data from Kotlin
+//     platform.setMethodCallHandler((call) async {
+//       debugPrint("OVERLAY_APP: Received method call: ${call.method}");
+//       if (call.method == 'showOverlay') {
+//         final pkg = call.arguments['packageName'] ?? '';
+//         final name = call.arguments['appName'] ?? '';
+//         debugPrint("OVERLAY_APP: Received data - pkg=$pkg, name=$name");
 
-        setState(() {
-          packageName = pkg;
-          appName = name;
-          isDataReceived = true;
-        });
-      }
-    });
-  }
+//         setState(() {
+//           packageName = pkg;
+//           appName = name;
+//           isDataReceived = true;
+//         });
+//       }
+//     });
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    debugPrint("OVERLAY_APP: Building with isDataReceived=$isDataReceived");
+//   @override
+//   Widget build(BuildContext context) {
+//     debugPrint("OVERLAY_APP: Building with isDataReceived=$isDataReceived");
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black87,
-      ),
-      home: isDataReceived
-          ? OverlayLockPage(packageName: packageName, appName: appName)
-          : const Scaffold(
-              backgroundColor: Colors.black87,
-              body: Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-            ),
-    );
-  }
-}
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       theme: ThemeData(
+//         brightness: Brightness.dark,
+//         scaffoldBackgroundColor: Colors.black87,
+//       ),
+//       home: isDataReceived
+//           ? OverlayLockPage(packageName: packageName, appName: appName)
+//           : const Scaffold(
+//               backgroundColor: Colors.black87,
+//               body: Center(
+//                 child: CircularProgressIndicator(color: Colors.white),
+//               ),
+//             ),
+//     );
+//   }
+// }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -167,10 +167,14 @@ class _MyAppState extends State<MyApp> {
     // Listen for navigation commands from MainActivity
     navigationChannel.setMethodCallHandler((call) async {
       if (call.method == 'openCamera') {
+        print("...................................on open camera method.......................................");
         final packageName = call.arguments['packageName'] as String;
         final appName = call.arguments['appName'] as String? ?? '';
+        print("from open camera method: $packageName");
+        print("from open camera methos: $appName");
 
         navigatorKey.currentState?.push(
+          
           MaterialPageRoute(
             builder: (_) =>
                 CameraPage(packageName: packageName, appName: appName),
@@ -178,6 +182,8 @@ class _MyAppState extends State<MyApp> {
         );
       }
     });
+
+    navigationChannel.invokeMethod("flutterReady");
   }
 
   Future<void> _checkIntroFlag() async {

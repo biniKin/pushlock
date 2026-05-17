@@ -26,6 +26,7 @@ class LocalPushupCountService {
     final current = getPushupCountLocally();
     final updated = current + delta;
     await savePushupLocally(updated);
+    _pushupController.add(updated);
   }
 
   // get push up count

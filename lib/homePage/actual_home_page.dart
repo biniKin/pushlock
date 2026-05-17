@@ -47,44 +47,45 @@ class _ActualHomePageState extends State<ActualHomePage>
     }
   }
 
-  void _showBatteryOptimizationDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(255, 49, 49, 49),
-        title: const Row(
-          children: [
-            Icon(Icons.battery_alert, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Battery Optimization', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        content: const Text(
-          'PushLock needs to disable battery optimization to work reliably in the background.\n\n'
-          'Without this, the app may stop monitoring and locking apps when your device is idle.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Later', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _appLockService.navigateToBatterySettings();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurpleAccent,
-            ),
-            child: const Text('Allow', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+  void _showBatteryOptimizationDialog() async{
+    await _appLockService.navigateToBatterySettings();
+    // showDialog(
+    //   context: context,
+    //   barrierDismissible: false,
+    //   builder: (context) => AlertDialog(
+    //     backgroundColor: const Color.fromARGB(255, 49, 49, 49),
+    //     title: const Row(
+    //       children: [
+    //         Icon(Icons.battery_alert, color: Colors.orange),
+    //         SizedBox(width: 8),
+    //         Text('Battery Optimization', style: TextStyle(color: Colors.white)),
+    //       ],
+    //     ),
+    //     content: const Text(
+    //       'PushLock needs to disable battery optimization to work reliably in the background.\n\n'
+    //       'Without this, the app may stop monitoring and locking apps when your device is idle.',
+    //       style: TextStyle(color: Colors.white70),
+    //     ),
+    //     actions: [
+    //       TextButton(
+    //         onPressed: () {
+    //           Navigator.of(context).pop();
+    //         },
+    //         child: const Text('Later', style: TextStyle(color: Colors.grey)),
+    //       ),
+    //       ElevatedButton(
+    //         onPressed: () async {
+    //           Navigator.of(context).pop();
+              
+    //         },
+    //         style: ElevatedButton.styleFrom(
+    //           backgroundColor: Colors.deepPurpleAccent,
+    //         ),
+    //         child: const Text('Allow', style: TextStyle(color: Colors.white)),
+    //       ),
+    //     ],
+    //   ),
+    // );
   }
 
   @override
@@ -98,9 +99,9 @@ class _ActualHomePageState extends State<ActualHomePage>
     super.didChangeAppLifecycleState(state);
     // Refresh data when app comes to foreground
     if (state == AppLifecycleState.resumed) {
-      context.read<HomepageBloc>().add(RefreshHomepageData());
+      // context.read<HomepageBloc>().add(RefreshHomepageData());
       // Check battery optimization again when returning from settings
-      _checkBatteryOptimization();
+      // _checkBatteryOptimization();
     }
   }
 

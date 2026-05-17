@@ -24,13 +24,11 @@ class CameraPage extends StatefulWidget {
 
 class _CameraPageState extends State<CameraPage> {
   static const int confirmFrames = 3;
-  static const int calibrationFrames = 5;
+  static const int calibrationFrames = 10;
   static const platform = MethodChannel('overlay_channel');
 
   late int pushupcountforapp;
   final PushupSessionCache pushupSessionCache = PushupSessionCache();
-  
-
 
   late CameraController controller;
   late PoseDetector poseDetector;
@@ -60,10 +58,11 @@ class _CameraPageState extends State<CameraPage> {
   DetectorMode mode = DetectorMode.calibrating;
   List<double> calibrationShoulderY = [];
   List<double> calibrationElbowAngles = [];
+  List<double> calibrationHip = [];
 
   // Thresholds (will be set during calibration)
   double positionThreshold = 0.08; // 8% of frame height
-  double angleThreshold = 30.0; // 30 degrees
+  double angleThreshold = 40.0; // 30 degrees
 
   Pushupdetection pushupdetection = Pushupdetection();
   double frameHeight = 1.0;
@@ -95,11 +94,35 @@ class _CameraPageState extends State<CameraPage> {
     debugPrint("Required push-ups: $pushupcountforapp");
   }
 
-  void _initial() async {
+  bool isProfileMode = false; // Toggle for side/profile view
+  Size? _canvasSize;
+  Size? _lastImageSize; // Cache last seen image size
+
+  String text = "Preparing camera...";
+
+  // double _average(List<double> values) {
+  //   if (values.isEmpty) return 0.0;
+  //   return values.reduce((a, b) => a + b) / values.length;
+  // }
+
+  // double _movingAverage(List<double> history, double newValue, int maxSize) {
+  //   history.add(newValue);
+  //   if (history.length > maxSize) history.removeAt(0);
+  //   return _average(history);
+  // }
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _initial();
+  //   _getPushupCount();
+  // }
+
+  Future<void> _initial() async {
     poseDetector = PoseDetector(options: PoseDetectorOptions());
 
     controller = CameraController(
-      cameras[1],
+      cameras[1], // front camera
       ResolutionPreset.medium,
       enableAudio: false,
     );
@@ -107,31 +130,230 @@ class _CameraPageState extends State<CameraPage> {
     await controller.initialize();
     if (!mounted) return;
 
-    // Get frame dimensions
     frameHeight = controller.value.previewSize?.height ?? 1.0;
+
+    // Capture preview size once (approx canvas)
+    _canvasSize = controller.value.previewSize != null
+        ? Size(
+            controller.value.previewSize!.width,
+            controller.value.previewSize!.height,
+          )
+        : null;
 
     controller.startImageStream((img) async {
       if (_isProcessing) return;
       _isProcessing = true;
 
+      final rotation = pushupdetection.getImageRotation(controller);
       final inputImage = pushupdetection.inputImageFromCameraImage(
         img,
-        pushupdetection.getImageRotation(controller),
+        rotation,
       );
+
+      // Cache image size
+      _lastImageSize ??= inputImage.metadata?.size;
+
       final poses = await poseDetector.processImage(inputImage);
 
-      if (poses.isNotEmpty) {
+      if (poses.isNotEmpty && mounted) {
         if (mode == DetectorMode.calibrating) {
-          handleCalibration(poses.first);
+          handleCalibration(poses.first, rotation);
         } else {
-          detectPushUpHybrid(poses.first);
+          detectPushUpHybrid(poses.first, rotation);
         }
       }
 
       _isProcessing = false;
     });
 
-    setState(() {});
+    if (mounted) setState(() {});
+  }
+
+  void handleCalibration(Pose pose, InputImageRotation rotation) {
+    if (!pushupdetection.bothArmsVisible(pose)) {
+      setState(() => text = "Both arms must be visible");
+      return;
+    }
+
+    // Check if user is facing camera (not profile view)
+    if (!pushupdetection.isFacingCamera(pose)) {
+      setState(
+        () => text = "Please face the camera directly\nNot profile/side view",
+      );
+      return;
+    }
+
+    final canvas = _canvasSize ?? MediaQuery.of(context).size;
+    final imageSize = _lastImageSize ?? Size(720, 1280); // fallback
+    final dir = controller.description.lensDirection;
+
+    final isHorizontal = pushupdetection.isBodyHorizontal(
+      pose,
+      rotation,
+      canvas,
+      imageSize,
+      dir,
+    );
+
+    if (isProfileMode) {
+      if (!isHorizontal) {
+        setState(() => text = "Please position body horizontally (side view)");
+        return;
+      }
+    } else {
+      if (isHorizontal) {
+        setState(() => text = "Please face camera with body upright");
+        return;
+      }
+    }
+
+    final bodyRef = pushupdetection.getBodySizeReference(pose);
+    if (!pushupdetection.wristsUnderShoulders(
+      pose,
+      rotation,
+      canvas,
+      imageSize,
+      dir,
+      bodyRef,
+    )) {
+      setState(() => text = "Please place wrists under shoulders");
+      return;
+    }
+
+    final shoulderY = pushupdetection.getShoulderY(pose, frameHeight);
+    if (shoulderY == null) return;
+
+    final elbowAngle = pushupdetection.getCombinedElbowAngle(pose);
+    if (elbowAngle == null) return;
+
+    final bodySize = pushupdetection.getBodySizeReference(pose);
+    if (bodySize == null) return;
+
+    // Check if arms are extended (top position for push-up)
+    if (elbowAngle < 150) {
+      setState(() => text = "Extend your arms fully\nTop push-up position");
+      return;
+    }
+
+    calibrationShoulderY.add(shoulderY);
+    calibrationElbowAngles.add(elbowAngle);
+
+    setState(() {
+      text =
+          "Calibrating... ${calibrationShoulderY.length}/$calibrationFrames\nHold top position";
+    });
+
+    debugPrint(
+      "Calibrating... ${calibrationShoulderY.length}/$calibrationFrames",
+    );
+
+    if (calibrationShoulderY.length >= calibrationFrames) {
+      baselineShoulderY = _average(calibrationShoulderY);
+      baselineElbowAngle = _average(calibrationElbowAngles);
+      bodySizeReference = bodySize;
+
+      // You can make these adaptive
+      positionThreshold = 0.07 + (bodySize / 300) * 0.04; // example
+      angleThreshold = 35.0;
+
+      mode = DetectorMode.active;
+      phase = PushUpState.up;
+
+      debugPrint(
+        "Calibration complete – baseline Y: $baselineShoulderY, angle: $baselineElbowAngle",
+      );
+
+      calibrationShoulderY.clear();
+      calibrationElbowAngles.clear();
+    }
+  }
+
+  void detectPushUpHybrid(Pose pose, InputImageRotation rotation) {
+    if (!pushupdetection.bothArmsVisible(pose)) return;
+
+    final canvas = _canvasSize ?? MediaQuery.of(context).size;
+    final imageSize = _lastImageSize ?? Size(720, 1280);
+    final dir = controller.description.lensDirection;
+
+    // Use transformed shoulder Y for consistency
+    final shoulderLm = pushupdetection.getTransformedLandmark(
+      pose,
+      PoseLandmarkType.leftShoulder,
+      rotation,
+      canvas,
+      imageSize,
+      dir,
+    );
+    final shoulderY = shoulderLm != null ? shoulderLm.y / canvas.height : null;
+
+    if (shoulderY == null) return;
+
+    final elbowAngle = pushupdetection.getCombinedElbowAngle(pose);
+    if (elbowAngle == null) return;
+
+    final smoothedShoulderY = _movingAverage(shoulderYHistory, shoulderY, 5);
+    final smoothedElbowAngle = _movingAverage(elbowAngleHistory, elbowAngle, 5);
+
+    final positionDisplacement =
+        smoothedShoulderY - (baselineShoulderY ?? smoothedShoulderY);
+    final angleChange =
+        (baselineElbowAngle ?? smoothedElbowAngle) - smoothedElbowAngle;
+
+    debugPrint(
+      "Y: ${smoothedShoulderY.toStringAsFixed(3)} | Δpos: ${positionDisplacement.toStringAsFixed(3)} | "
+      "Angle: ${smoothedElbowAngle.toStringAsFixed(1)}° | Δang: ${angleChange.toStringAsFixed(1)}°",
+    );
+
+    switch (phase) {
+      case PushUpState.up:
+        if (positionDisplacement > positionThreshold &&
+            angleChange > angleThreshold) {
+          downConfirmFrames++;
+          if (downConfirmFrames >= confirmFrames) {
+            phase = PushUpState.down;
+            lowestShoulderY = smoothedShoulderY;
+            downConfirmFrames = 0;
+            debugPrint("→ DOWN confirmed");
+          }
+        } else {
+          downConfirmFrames = 0;
+        }
+        break;
+
+      case PushUpState.down:
+        if (smoothedShoulderY > (lowestShoulderY ?? 0)) {
+          lowestShoulderY = smoothedShoulderY;
+        }
+
+        final upDisplacement =
+            (lowestShoulderY ?? smoothedShoulderY) - smoothedShoulderY;
+        final angleRecovery =
+            smoothedElbowAngle - (baselineElbowAngle! - angleThreshold);
+
+        if (upDisplacement > positionThreshold * 0.7 &&
+            angleRecovery > angleThreshold * 0.6) {
+          upConfirmFrames++;
+          if (upConfirmFrames >= confirmFrames) {
+            phase = PushUpState.up;
+            pushUpCount++;
+            upConfirmFrames = 0;
+
+            baselineShoulderY = smoothedShoulderY;
+            baselineElbowAngle = smoothedElbowAngle;
+
+            debugPrint("PUSH-UP #$pushUpCount counted!");
+
+            setState(() {});
+
+            if (pushUpCount >= pushupcountforapp) {
+              _handleUnlock();
+            }
+          }
+        } else {
+          upConfirmFrames = 0;
+        }
+        break;
+    }
   }
 
   Future<void> _unlockApp() async {
@@ -145,12 +367,13 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _handleUnlock() async {
-    final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    final LocalPushupCountService localPushupCountService = LocalPushupCountService(sharedPreferences: sharedPreferences);
+    final SharedPreferences sharedPreferences =
+        await SharedPreferences.getInstance();
+    final LocalPushupCountService localPushupCountService =
+        LocalPushupCountService(sharedPreferences: sharedPreferences);
 
     await controller.stopImageStream();
-    await localPushupCountService.savePushupLocally(pushUpCount);
-
+    await localPushupCountService.incrementPushups(pushUpCount);
 
     if (!mounted) return;
 
@@ -159,7 +382,10 @@ class _CameraPageState extends State<CameraPage> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Color.fromARGB(255, 56, 56, 56),
-        title: const Text('🎉 Great Job!', style: TextStyle(color:Colors.white)),
+        title: const Text(
+          '🎉 Great Job!',
+          style: TextStyle(color: Colors.white),
+        ),
         content: Text(
           'You completed $pushUpCount push-ups!\n\n${widget.appName} is now unlocked.',
           style: TextStyle(color: Colors.white, fontSize: 14),
@@ -178,160 +404,111 @@ class _CameraPageState extends State<CameraPage> {
     );
   }
 
-  void handleCalibration(Pose pose) {
-    // Check if both arms are visible
-    if (!pushupdetection.bothArmsVisible(pose)) return;
+  // void detectPushUpHybrid(Pose pose) {
+  //   // Check if both arms are visible
+  //   if (!pushupdetection.bothArmsVisible(pose)) {
+  //     debugPrint("⚠️ Arms not visible");
+  //     return;
+  //   }
 
-    // Get shoulder position
-    final shoulderY = pushupdetection.getShoulderY(pose, frameHeight);
-    if (shoulderY == null) return;
+  //   // Get current shoulder position (normalized)
+  //   final currentShoulderY = pushupdetection.getShoulderY(pose, frameHeight);
+  //   if (currentShoulderY == null) {
+  //     debugPrint("⚠️ Shoulder position unavailable");
+  //     return;
+  //   }
 
-    // Get elbow angle
-    final elbowAngle = pushupdetection.getCombinedElbowAngle(pose);
-    if (elbowAngle == null) return;
+  //   // Get current elbow angle
+  //   final currentElbowAngle = pushupdetection.getCombinedElbowAngle(pose);
+  //   if (currentElbowAngle == null) {
+  //     debugPrint("⚠️ Elbow angle unavailable");
+  //     return;
+  //   }
 
-    // Get body size reference
-    final bodySize = pushupdetection.getBodySizeReference(pose);
-    if (bodySize == null) return;
+  //   // Apply moving average for smoothing
+  //   final smoothedShoulderY = _movingAverage(
+  //     shoulderYHistory,
+  //     currentShoulderY,
+  //     5,
+  //   );
+  //   final smoothedElbowAngle = _movingAverage(
+  //     elbowAngleHistory,
+  //     currentElbowAngle,
+  //     5,
+  //   );
 
-    calibrationShoulderY.add(shoulderY);
-    calibrationElbowAngles.add(elbowAngle);
-    setState((){});
+  //   // Calculate displacements
+  //   final positionDisplacement =
+  //       smoothedShoulderY - (baselineShoulderY ?? smoothedShoulderY);
+  //   final angleChange =
+  //       (baselineElbowAngle ?? smoothedElbowAngle) - smoothedElbowAngle;
 
-    debugPrint(
-      "📏 Calibrating... ${calibrationShoulderY.length}/$calibrationFrames",
-    );
+  //   debugPrint(
+  //     "Position: $smoothedShoulderY, Displacement: ${positionDisplacement.toStringAsFixed(3)}, Angle: ${smoothedElbowAngle.toStringAsFixed(1)}°, Change: ${angleChange.toStringAsFixed(1)}°",
+  //   );
 
-    if (calibrationShoulderY.length >= calibrationFrames) {
-      // Set baseline values (user should be in UP position)
-      baselineShoulderY = _average(calibrationShoulderY);
-      baselineElbowAngle = _average(calibrationElbowAngles);
-      bodySizeReference = bodySize;
+  //   switch (phase) {
+  //     case PushUpState.up:
+  //       // Detect going DOWN
+  //       // Position: Shoulder moved down (Y increased)
+  //       // Angle: Elbow bent (angle decreased)
+  //       if (positionDisplacement > positionThreshold &&
+  //           angleChange > angleThreshold) {
+  //         downConfirmFrames++;
+  //         if (downConfirmFrames >= confirmFrames) {
+  //           phase = PushUpState.down;
+  //           lowestShoulderY = smoothedShoulderY;
+  //           downConfirmFrames = 0;
+  //           debugPrint(
+  //             "⬇️ Confirmed DOWN - Position: ${positionDisplacement.toStringAsFixed(3)}, Angle: ${angleChange.toStringAsFixed(1)}°",
+  //           );
+  //         }
+  //       } else {
+  //         downConfirmFrames = 0;
+  //       }
+  //       break;
 
-      // Calculate adaptive thresholds based on body size
-      // Larger body = larger displacement expected
-      positionThreshold = 0.08; // 8% of frame height
-      angleThreshold = 30.0; // 30 degrees minimum bend
+  //     case PushUpState.down:
+  //       // Track lowest point
+  //       if (smoothedShoulderY > (lowestShoulderY ?? 0)) {
+  //         lowestShoulderY = smoothedShoulderY;
+  //       }
 
-      mode = DetectorMode.active;
-      phase = PushUpState.up;
+  //       // Detect going UP
+  //       // Position: Shoulder moved up from lowest point (Y decreased)
+  //       // Angle: Elbow extended (angle increased back toward baseline)
+  //       final upDisplacement =
+  //           (lowestShoulderY ?? smoothedShoulderY) - smoothedShoulderY;
+  //       final angleRecovery =
+  //           smoothedElbowAngle - (baselineElbowAngle! - angleThreshold);
 
-      debugPrint("✅ Calibration complete");
-      debugPrint("Baseline shoulder Y: $baselineShoulderY");
-      debugPrint("Baseline elbow angle: $baselineElbowAngle");
-      debugPrint("Position threshold: $positionThreshold");
-      debugPrint("Angle threshold: $angleThreshold");
+  //       if (upDisplacement > positionThreshold * 0.7 &&
+  //           angleRecovery > angleThreshold * 0.5) {
+  //         upConfirmFrames++;
+  //         if (upConfirmFrames >= confirmFrames) {
+  //           // PUSHUP COUNTED!
+  //           phase = PushUpState.up;
+  //           pushUpCount++;
+  //           upConfirmFrames = 0;
 
-      calibrationShoulderY.clear();
-      calibrationElbowAngles.clear();
-    }
-  }
+  //           // Reset baseline to current position (adaptive)
+  //           baselineShoulderY = smoothedShoulderY;
+  //           baselineElbowAngle = smoothedElbowAngle;
 
-  void detectPushUpHybrid(Pose pose) {
-    // Check if both arms are visible
-    if (!pushupdetection.bothArmsVisible(pose)) {
-      debugPrint("⚠️ Arms not visible");
-      return;
-    }
+  //           debugPrint("✅ PUSH-UP #$pushUpCount COUNTED!");
+  //           setState(() {});
 
-    // Get current shoulder position (normalized)
-    final currentShoulderY = pushupdetection.getShoulderY(pose, frameHeight);
-    if (currentShoulderY == null) {
-      debugPrint("⚠️ Shoulder position unavailable");
-      return;
-    }
-
-    // Get current elbow angle
-    final currentElbowAngle = pushupdetection.getCombinedElbowAngle(pose);
-    if (currentElbowAngle == null) {
-      debugPrint("⚠️ Elbow angle unavailable");
-      return;
-    }
-
-    // Apply moving average for smoothing
-    final smoothedShoulderY = _movingAverage(
-      shoulderYHistory,
-      currentShoulderY,
-      5,
-    );
-    final smoothedElbowAngle = _movingAverage(
-      elbowAngleHistory,
-      currentElbowAngle,
-      5,
-    );
-
-    // Calculate displacements
-    final positionDisplacement =
-        smoothedShoulderY - (baselineShoulderY ?? smoothedShoulderY);
-    final angleChange =
-        (baselineElbowAngle ?? smoothedElbowAngle) - smoothedElbowAngle;
-
-    debugPrint(
-      "Position: $smoothedShoulderY, Displacement: ${positionDisplacement.toStringAsFixed(3)}, Angle: ${smoothedElbowAngle.toStringAsFixed(1)}°, Change: ${angleChange.toStringAsFixed(1)}°",
-    );
-
-    switch (phase) {
-      case PushUpState.up:
-        // Detect going DOWN
-        // Position: Shoulder moved down (Y increased)
-        // Angle: Elbow bent (angle decreased)
-        if (positionDisplacement > positionThreshold &&
-            angleChange > angleThreshold) {
-          downConfirmFrames++;
-          if (downConfirmFrames >= confirmFrames) {
-            phase = PushUpState.down;
-            lowestShoulderY = smoothedShoulderY;
-            downConfirmFrames = 0;
-            debugPrint(
-              "⬇️ Confirmed DOWN - Position: ${positionDisplacement.toStringAsFixed(3)}, Angle: ${angleChange.toStringAsFixed(1)}°",
-            );
-          }
-        } else {
-          downConfirmFrames = 0;
-        }
-        break;
-
-      case PushUpState.down:
-        // Track lowest point
-        if (smoothedShoulderY > (lowestShoulderY ?? 0)) {
-          lowestShoulderY = smoothedShoulderY;
-        }
-
-        // Detect going UP
-        // Position: Shoulder moved up from lowest point (Y decreased)
-        // Angle: Elbow extended (angle increased back toward baseline)
-        final upDisplacement =
-            (lowestShoulderY ?? smoothedShoulderY) - smoothedShoulderY;
-        final angleRecovery =
-            smoothedElbowAngle - (baselineElbowAngle! - angleThreshold);
-
-        if (upDisplacement > positionThreshold * 0.7 &&
-            angleRecovery > angleThreshold * 0.5) {
-          upConfirmFrames++;
-          if (upConfirmFrames >= confirmFrames) {
-            // PUSHUP COUNTED!
-            phase = PushUpState.up;
-            pushUpCount++;
-            upConfirmFrames = 0;
-
-            // Reset baseline to current position (adaptive)
-            baselineShoulderY = smoothedShoulderY;
-            baselineElbowAngle = smoothedElbowAngle;
-
-            debugPrint("✅ PUSH-UP #$pushUpCount COUNTED!");
-            setState(() {});
-
-            // Check if goal reached
-            if (pushUpCount >= pushupcountforapp) {
-              _handleUnlock();
-            }
-          }
-        } else {
-          upConfirmFrames = 0;
-        }
-        break;
-    }
-  }
+  //           // Check if goal reached
+  //           if (pushUpCount >= pushupcountforapp) {
+  //             _handleUnlock();
+  //           }
+  //         }
+  //       } else {
+  //         upConfirmFrames = 0;
+  //       }
+  //       break;
+  //   }
+  // }
 
   @override
   void dispose() {
@@ -430,7 +607,7 @@ class _CameraPageState extends State<CameraPage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        "Getting ready… ${calibrationShoulderY.length}/$calibrationFrames\nHold arms extended (top position)",
+                        "${text}.... Getting ready… ${calibrationShoulderY.length}/$calibrationFrames\nHold arms extended (top position)",
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,

@@ -71,11 +71,13 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.pushlock/app_lock"
     private lateinit var lockedAppRepo: LockedAppRepo
     private lateinit var appStatRepo: AppStatRepo
+    private var pendingCameraIntent: Intent? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Initialize Room database
+        // handleIntent(intent)
+        pendingCameraIntent = intent
+        // Initialize Room database 
         val database = PushLockDatabase.getDatabase(this)
         lockedAppRepo = LockedAppRepo(database.lockedAppDao())
         appStatRepo = AppStatRepo(database.appStatDao())
@@ -554,7 +556,16 @@ class MainActivity : FlutterActivity() {
         // Deep link channel for navigation
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEEP_LINK_CHANNEL)
             .setMethodCallHandler { call, result ->
-                result.notImplemented()
+                // result.notImplemented()
+                if (call.method == "flutterReady") {
+                        pendingCameraIntent?.let {
+                        handleIntent(it)
+                        pendingCameraIntent = null
+                    }
+                    result.success(true)
+                } else {
+                    result.notImplemented()
+                }
             }
     }
 
